@@ -32,8 +32,7 @@ import {
   Edit3,
   Camera,
   Sun,
-  Moon,
-  Scale
+  Moon
 } from 'lucide-react';
 
 interface FragranceModalProps {
@@ -44,8 +43,6 @@ interface FragranceModalProps {
   onSelectAnother: (fragrance: CatalogFragrance) => void;
   isAdmin?: boolean;
   onRequireAdminAuth?: () => void;
-  onAddToCompare?: (fragrance: CatalogFragrance) => void;
-  isCompared?: boolean;
 }
 
 export const FragranceModal: React.FC<FragranceModalProps> = ({
@@ -56,8 +53,6 @@ export const FragranceModal: React.FC<FragranceModalProps> = ({
   onSelectAnother,
   isAdmin = false,
   onRequireAdminAuth,
-  onAddToCompare,
-  isCompared = false,
 }) => {
   const [selectedNotePopup, setSelectedNotePopup] = useState<string | null>(null);
   const [isAdminEditorOpen, setIsAdminEditorOpen] = useState<boolean>(false);
@@ -182,24 +177,6 @@ export const FragranceModal: React.FC<FragranceModalProps> = ({
                   <span className="sm:hidden">Editar</span>
                 </button>
               )}
-
-              {onAddToCompare && (
-                <button
-                  type="button"
-                  onClick={() => onAddToCompare(fragrance)}
-                  className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-lg text-xs font-bold transition border ${
-                    isCompared
-                      ? 'bg-emerald-500/20 text-emerald-600 border-emerald-500/50'
-                      : themeMode === 'white'
-                      ? 'bg-stone-100 text-stone-800 hover:bg-stone-200 border-stone-300'
-                      : 'bg-stone-900 text-stone-300 hover:text-white border-stone-800'
-                  }`}
-                  title="Comparar este perfume en pantalla dividida"
-                >
-                  <Scale className="w-3.5 h-3.5 text-[#C9A84C]" />
-                  <span>{isCompared ? '✓ En Comparador' : 'Comparar'}</span>
-                </button>
-              )}
             </div>
 
             <div className="flex items-center gap-2">
@@ -249,14 +226,18 @@ export const FragranceModal: React.FC<FragranceModalProps> = ({
                 <div
                   className={`relative w-full aspect-[3/4] max-w-xs mx-auto rounded-3xl overflow-hidden border p-4 flex items-center justify-center group transition-colors ${
                     themeMode === 'white'
-                      ? 'bg-gradient-to-b from-stone-50 via-white to-stone-100 border-stone-200 shadow-xl'
+                      ? 'bg-white border-stone-200 shadow-xl'
                       : 'bg-gradient-to-b from-stone-900 via-[#0d0d0d] to-black border-[#C9A84C]/40 shadow-2xl'
                   }`}
                 >
                   <img
                     src={bottlePhoto}
                     alt={fragrance.name}
-                    className="w-full h-full object-contain drop-shadow-[0_8px_24px_rgba(201,168,76,0.15)] group-hover:scale-105 transition-transform duration-500"
+                    className={`w-full h-full object-contain group-hover:scale-105 transition-transform duration-500 ${
+                      themeMode === 'white'
+                        ? 'mix-blend-multiply drop-shadow-[0_8px_20px_rgba(0,0,0,0.06)]'
+                        : 'drop-shadow-[0_8px_24px_rgba(201,168,76,0.15)]'
+                    }`}
                   />
 
                   {/* Favorite button */}

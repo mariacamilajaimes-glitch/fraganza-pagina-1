@@ -6,7 +6,6 @@ import { AdvancedSearch } from './components/AdvancedSearch';
 import { FamilyExplorer } from './components/FamilyExplorer';
 import { FragranceModal } from './components/FragranceModal';
 import { OfficialCatalogView } from './components/OfficialCatalogView';
-import { FragranceComparator } from './components/FragranceComparator';
 import { SupabaseDrawer } from './components/SupabaseDrawer';
 import { AdminAuthModal } from './components/AdminAuthModal';
 import { getPerfumeBottlePhoto } from './data/fragranceVisuals';
@@ -25,13 +24,12 @@ import {
   Lock,
   ShieldCheck,
   ShieldAlert,
-  Scale,
   Sun,
   Moon
 } from 'lucide-react';
 
 export default function App() {
-  const [activeTab, setActiveTab] = useState<'quiz' | 'search' | 'families' | 'catalog' | 'favorites' | 'compare'>('quiz');
+  const [activeTab, setActiveTab] = useState<'quiz' | 'search' | 'families' | 'catalog' | 'favorites'>('quiz');
   const [selectedFragrance, setSelectedFragrance] = useState<CatalogFragrance | null>(null);
   const [isSupabaseDrawerOpen, setIsSupabaseDrawerOpen] = useState<boolean>(false);
   const [isAdminModalOpen, setIsAdminModalOpen] = useState<boolean>(false);
@@ -48,7 +46,7 @@ export default function App() {
     try {
       const saved = localStorage.getItem('fraganza_theme_mode');
       if (saved === 'light' || saved === 'dark') return saved;
-      if (window.matchMedia && window.matchMedia('(prefers-color-scheme: light)').matches) {
+      if (typeof window !== 'undefined' && window.matchMedia && window.matchMedia('(prefers-color-scheme: light)').matches) {
         return 'light';
       }
     } catch {}
@@ -70,6 +68,7 @@ export default function App() {
 
   // Dynamic listener for phone / OS theme preference changes
   useEffect(() => {
+    if (typeof window === 'undefined' || !window.matchMedia) return;
     const mql = window.matchMedia('(prefers-color-scheme: light)');
     const handler = (e: MediaQueryListEvent) => {
       const userLocked = localStorage.getItem('fraganza_theme_mode');
@@ -89,19 +88,6 @@ export default function App() {
     });
   };
 
-  // Comparison state with persistent storage
-  const [compareList, setCompareList] = useState<CatalogFragrance[]>(() => {
-    try {
-      const saved = localStorage.getItem('fraganza_compare_ids');
-      if (saved) {
-        const ids: string[] = JSON.parse(saved);
-        const all = getCustomizedCatalog();
-        return ids.map((id) => all.find((c) => c.id === id)).filter((f): f is CatalogFragrance => Boolean(f));
-      }
-    } catch {}
-    return [];
-  });
-
   // Favorites state persisted in localStorage
   const [favorites, setFavorites] = useState<string[]>(() => {
     try {
@@ -120,39 +106,6 @@ export default function App() {
       localStorage.setItem('fraganza_fav_codes', JSON.stringify(favorites));
     } catch {}
   }, [favorites]);
-
-  useEffect(() => {
-    try {
-      localStorage.setItem('fraganza_compare_ids', JSON.stringify(compareList.map((c) => c.id)));
-    } catch {}
-  }, [compareList]);
-
-  const handleToggleCompare = (fragrance: CatalogFragrance) => {
-    setCompareList((prev) => {
-      const exists = prev.some((c) => c.id === fragrance.id);
-      if (exists) {
-        showToast(`"${fragrance.name}" eliminada de la comparación`);
-        return prev.filter((c) => c.id !== fragrance.id);
-      } else {
-        if (prev.length >= 2) {
-          showToast(`"${fragrance.name}" agregada a la comparación (reemplazando anterior)`);
-          return [prev[1], fragrance];
-        } else {
-          showToast(`"${fragrance.name}" agregada al comparador`);
-          return [...prev, fragrance];
-        }
-      }
-    });
-  };
-
-  const handleRemoveFromCompare = (id: string) => {
-    setCompareList((prev) => prev.filter((c) => c.id !== id));
-  };
-
-  const handleClearCompare = () => {
-    setCompareList([]);
-    showToast('Comparación vaciada');
-  };
 
   // Secret admin shortcut (Ctrl + Shift + A or Alt + A)
   useEffect(() => {
@@ -247,15 +200,16 @@ export default function App() {
         </div>
       )}
 
-      {/* Header with Official Fraganza Logo */}
-      <header className={`sticky ${isAdmin ? 'top-8' : 'top-0'} z-40 bg-[#0a0a0a]/90 backdrop-blur-md border-b border-stone-800/90 shadow-xl transition-all`}>
+      {/* Header with Official Fraganza Logo and Dedicated Navigation Bar */}
+      <header className={`sticky ${isAdmin ? 'top-8' : 'top-0'} z-40 bg-[#0a0a0a]/95 backdrop-blur-md border-b border-stone-800/80 shadow-xl transition-all`}>
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex items-center justify-between h-20">
+          {/* Tier 1: Brand & Top Utilities */}
+          <div className="flex items-center justify-between py-3 sm:py-4 border-b border-stone-800/40">
             {/* Logo Brand (Clicking 3 times opens secret Admin Login) */}
             <div
               onClick={handleBrandClick}
               className="flex items-center gap-3 cursor-pointer group select-none"
-              title="FRAGANZA"
+              title="FRAGANZA - Alta Perfumería"
             >
               <img
                 src="/assets/aistudio/fraganza_logo_d0313cc4.png"
@@ -266,90 +220,29 @@ export default function App() {
                 <span className="text-xl sm:text-2xl font-bold font-serif-luxury tracking-[0.2em] text-transparent bg-clip-text bg-gradient-to-r from-[#F0D080] via-[#C9A84C] to-[#A07830] leading-none">
                   FRAGANZA
                 </span>
+                <span className="text-[9px] sm:text-[10px] tracking-[0.25em] uppercase text-stone-400 font-medium mt-1">
+                  Alta Perfumería
+                </span>
               </div>
             </div>
 
-            {/* Desktop Navigation */}
-            <nav className="hidden md:flex items-center gap-1.5">
+            {/* Right-side quick controls */}
+            <div className="flex items-center gap-2">
+              {/* Favorites quick trigger */}
               <button
-                onClick={() => setActiveTab('quiz')}
-                className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-semibold tracking-wide transition-all ${
-                  activeTab === 'quiz'
-                    ? 'bg-gradient-to-r from-[#C9A84C] to-[#F0D080] text-stone-950 font-bold shadow-lg shadow-[#C9A84C]/25'
-                    : 'text-stone-300 hover:text-stone-100 hover:bg-[#141414]'
-                }`}
-              >
-                <Sparkles className="w-3.5 h-3.5" />
-                Test Inteligente
-              </button>
-
-              <button
-                onClick={() => setActiveTab('search')}
-                className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-semibold tracking-wide transition-all ${
-                  activeTab === 'search'
-                    ? 'bg-gradient-to-r from-[#C9A84C] to-[#F0D080] text-stone-950 font-bold shadow-lg shadow-[#C9A84C]/25'
-                    : 'text-stone-300 hover:text-stone-100 hover:bg-[#141414]'
-                }`}
-              >
-                <Search className="w-3.5 h-3.5" />
-                Buscador por Notas
-              </button>
-
-              <button
-                onClick={() => setActiveTab('families')}
-                className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-semibold tracking-wide transition-all ${
-                  activeTab === 'families'
-                    ? 'bg-gradient-to-r from-[#C9A84C] to-[#F0D080] text-stone-950 font-bold shadow-lg shadow-[#C9A84C]/25'
-                    : 'text-stone-300 hover:text-stone-100 hover:bg-[#141414]'
-                }`}
-              >
-                <Compass className="w-3.5 h-3.5" />
-                Familias Olfativas
-              </button>
-
-              <button
-                onClick={() => setActiveTab('catalog')}
-                className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-semibold tracking-wide transition-all ${
-                  activeTab === 'catalog'
-                    ? 'bg-gradient-to-r from-[#C9A84C] to-[#F0D080] text-stone-950 font-bold shadow-lg shadow-[#C9A84C]/25'
-                    : 'text-stone-300 hover:text-stone-100 hover:bg-[#141414]'
-                }`}
-              >
-                <Layers className="w-3.5 h-3.5" />
-                Catálogo (207)
-              </button>
-
-              <button
-                onClick={() => setActiveTab('compare')}
-                className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-semibold tracking-wide transition-all relative ${
-                  activeTab === 'compare'
-                    ? 'bg-gradient-to-r from-[#C9A84C] to-[#F0D080] text-stone-950 font-bold shadow-lg shadow-[#C9A84C]/25'
-                    : 'text-stone-300 hover:text-stone-100 hover:bg-[#141414]'
-                }`}
-              >
-                <Scale className="w-3.5 h-3.5" />
-                Comparar
-                {compareList.length > 0 && (
-                  <span className={`px-1.5 py-0.2 rounded-full text-[10px] font-black ${
-                    activeTab === 'compare' ? 'bg-stone-950 text-[#F0D080]' : 'bg-[#C9A84C] text-stone-950'
-                  }`}>
-                    {compareList.length}
-                  </span>
-                )}
-              </button>
-
-              <button
+                type="button"
                 onClick={() => setActiveTab('favorites')}
-                className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-semibold tracking-wide transition-all relative ${
+                title="Ver Favoritos Guardados"
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold border transition-all duration-200 cursor-pointer ${
                   activeTab === 'favorites'
-                    ? 'bg-gradient-to-r from-[#C9A84C] to-[#F0D080] text-stone-950 font-bold shadow-lg shadow-[#C9A84C]/25'
-                    : 'text-stone-300 hover:text-stone-100 hover:bg-[#141414]'
+                    ? 'bg-[#C9A84C] text-stone-950 border-[#C9A84C] font-bold shadow-md shadow-[#C9A84C]/20'
+                    : 'text-stone-300 hover:text-stone-100 border-stone-800 hover:border-[#C9A84C]/40 bg-[#121212]'
                 }`}
               >
-                <Heart className={`w-3.5 h-3.5 ${activeTab === 'favorites' ? 'fill-stone-950' : 'text-rose-400'}`} />
-                Favoritos
+                <Heart className={`w-3.5 h-3.5 ${activeTab === 'favorites' ? 'fill-stone-950 text-stone-950' : 'text-rose-400'}`} />
+                <span className="hidden sm:inline">Favoritos</span>
                 {favorites.length > 0 && (
-                  <span className={`px-1.5 py-0.2 rounded-full text-[10px] font-black ${
+                  <span className={`px-1.5 py-0.2 rounded-full text-[10px] font-bold ${
                     activeTab === 'favorites' ? 'bg-stone-950 text-[#F0D080]' : 'bg-rose-500 text-white'
                   }`}>
                     {favorites.length}
@@ -362,17 +255,17 @@ export default function App() {
                 type="button"
                 onClick={handleToggleTheme}
                 title={theme === 'dark' ? 'Cambiar a Modo Día (Blanco)' : 'Cambiar a Modo Noche (Oscuro)'}
-                className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold border transition-all duration-200 cursor-pointer ml-1 text-stone-300 hover:text-stone-100 border-stone-800 hover:border-[#C9A84C]/50 bg-[#121212]"
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold border transition-all duration-200 cursor-pointer text-stone-300 hover:text-stone-100 border-stone-800 hover:border-[#C9A84C]/50 bg-[#121212]"
               >
                 {theme === 'dark' ? (
                   <>
                     <Sun className="w-3.5 h-3.5 text-amber-400" />
-                    <span>Día</span>
+                    <span className="hidden sm:inline">Día</span>
                   </>
                 ) : (
                   <>
                     <Moon className="w-3.5 h-3.5 text-indigo-400" />
-                    <span>Noche</span>
+                    <span className="hidden sm:inline">Noche</span>
                   </>
                 )}
               </button>
@@ -382,116 +275,72 @@ export default function App() {
                 <button
                   onClick={() => setIsSupabaseDrawerOpen(true)}
                   title="Panel Administrador: Cambiar Fotos y Notas"
-                  className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold text-[#F0D080] bg-[#C9A84C]/20 border border-[#C9A84C] ml-1.5 hover:bg-[#C9A84C]/30 transition-colors shadow"
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold text-[#F0D080] bg-[#C9A84C]/20 border border-[#C9A84C] hover:bg-[#C9A84C]/30 transition-colors shadow"
                 >
                   <ShieldCheck className="w-4 h-4 text-[#F0D080]" />
-                  <span>Panel Admin</span>
+                  <span className="hidden md:inline">Panel Admin</span>
                 </button>
               )}
+            </div>
+          </div>
+
+          {/* Tier 2: The 4 Navigation Tabs (Under Fraganza Logo) */}
+          <div className="py-2.5 overflow-x-auto no-scrollbar">
+            <nav className="flex items-center justify-start sm:justify-center gap-2 min-w-max mx-auto">
+              <button
+                onClick={() => setActiveTab('quiz')}
+                className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-semibold tracking-wide transition-all ${
+                  activeTab === 'quiz'
+                    ? 'bg-gradient-to-r from-[#C9A84C] to-[#F0D080] text-stone-950 font-bold shadow-lg shadow-[#C9A84C]/25 ring-1 ring-[#C9A84C]'
+                    : 'text-stone-300 hover:text-stone-100 hover:bg-[#141414] border border-transparent hover:border-stone-800'
+                }`}
+              >
+                <Sparkles className="w-3.5 h-3.5" />
+                <span>Test Inteligente</span>
+              </button>
+
+              <button
+                onClick={() => setActiveTab('search')}
+                className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-semibold tracking-wide transition-all ${
+                  activeTab === 'search'
+                    ? 'bg-gradient-to-r from-[#C9A84C] to-[#F0D080] text-stone-950 font-bold shadow-lg shadow-[#C9A84C]/25 ring-1 ring-[#C9A84C]'
+                    : 'text-stone-300 hover:text-stone-100 hover:bg-[#141414] border border-transparent hover:border-stone-800'
+                }`}
+              >
+                <Search className="w-3.5 h-3.5" />
+                <span>Buscador por Notas</span>
+              </button>
+
+              <button
+                onClick={() => setActiveTab('families')}
+                className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-semibold tracking-wide transition-all ${
+                  activeTab === 'families'
+                    ? 'bg-gradient-to-r from-[#C9A84C] to-[#F0D080] text-stone-950 font-bold shadow-lg shadow-[#C9A84C]/25 ring-1 ring-[#C9A84C]'
+                    : 'text-stone-300 hover:text-stone-100 hover:bg-[#141414] border border-transparent hover:border-stone-800'
+                }`}
+              >
+                <Compass className="w-3.5 h-3.5" />
+                <span>Familias Olfativas</span>
+              </button>
+
+              <button
+                onClick={() => setActiveTab('catalog')}
+                className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-semibold tracking-wide transition-all ${
+                  activeTab === 'catalog'
+                    ? 'bg-gradient-to-r from-[#C9A84C] to-[#F0D080] text-stone-950 font-bold shadow-lg shadow-[#C9A84C]/25 ring-1 ring-[#C9A84C]'
+                    : 'text-stone-300 hover:text-stone-100 hover:bg-[#141414] border border-transparent hover:border-stone-800'
+                }`}
+              >
+                <Layers className="w-3.5 h-3.5" />
+                <span>Catálogo</span>
+              </button>
             </nav>
           </div>
-        </div>
-
-        {/* Mobile Navigation bar */}
-        <div className="md:hidden flex items-center justify-around py-2.5 px-1 bg-[#0d0d0d] border-t border-stone-800 text-[11px] overflow-x-auto">
-          <button
-            onClick={() => setActiveTab('quiz')}
-            className={`flex flex-col items-center gap-1 py-1 px-2 rounded-lg shrink-0 ${
-              activeTab === 'quiz' ? 'text-[#F0D080] font-bold' : 'text-stone-400'
-            }`}
-          >
-            <Sparkles className="w-4 h-4" />
-            <span>Test</span>
-          </button>
-          <button
-            onClick={() => setActiveTab('search')}
-            className={`flex flex-col items-center gap-1 py-1 px-2 rounded-lg shrink-0 ${
-              activeTab === 'search' ? 'text-[#F0D080] font-bold' : 'text-stone-400'
-            }`}
-          >
-            <Search className="w-4 h-4" />
-            <span>Notas</span>
-          </button>
-          <button
-            onClick={() => setActiveTab('families')}
-            className={`flex flex-col items-center gap-1 py-1 px-2 rounded-lg shrink-0 ${
-              activeTab === 'families' ? 'text-[#F0D080] font-bold' : 'text-stone-400'
-            }`}
-          >
-            <Compass className="w-4 h-4" />
-            <span>Familias</span>
-          </button>
-          <button
-            onClick={() => setActiveTab('catalog')}
-            className={`flex flex-col items-center gap-1 py-1 px-2 rounded-lg shrink-0 ${
-              activeTab === 'catalog' ? 'text-[#F0D080] font-bold' : 'text-stone-400'
-            }`}
-          >
-            <Layers className="w-4 h-4" />
-            <span>Catálogo</span>
-          </button>
-          <button
-            onClick={() => setActiveTab('compare')}
-            className={`flex flex-col items-center gap-1 py-1 px-2 rounded-lg shrink-0 relative ${
-              activeTab === 'compare' ? 'text-[#F0D080] font-bold' : 'text-stone-400'
-            }`}
-          >
-            <Scale className="w-4 h-4" />
-            <span>Comparar</span>
-            {compareList.length > 0 && (
-              <span className="absolute -top-1 right-1 w-4 h-4 rounded-full bg-[#C9A84C] text-stone-950 text-[9px] flex items-center justify-center font-bold">
-                {compareList.length}
-              </span>
-            )}
-          </button>
-          <button
-            onClick={() => setActiveTab('favorites')}
-            className={`flex flex-col items-center gap-1 py-1 px-2 rounded-lg shrink-0 relative ${
-              activeTab === 'favorites' ? 'text-[#F0D080] font-bold' : 'text-stone-400'
-            }`}
-          >
-            <Heart className="w-4 h-4" />
-            <span>Favoritos</span>
-            {favorites.length > 0 && (
-              <span className="absolute -top-1 right-1 w-4 h-4 rounded-full bg-rose-500 text-white text-[9px] flex items-center justify-center font-bold">
-                {favorites.length}
-              </span>
-            )}
-          </button>
-          {/* Day / Night toggle in mobile */}
-          <button
-            type="button"
-            onClick={handleToggleTheme}
-            className="flex flex-col items-center gap-1 py-1 px-2 rounded-lg shrink-0 text-stone-400 hover:text-stone-200"
-            title={theme === 'dark' ? 'Cambiar a Modo Día' : 'Cambiar a Modo Noche'}
-          >
-            {theme === 'dark' ? (
-              <>
-                <Sun className="w-4 h-4 text-amber-400" />
-                <span>Día</span>
-              </>
-            ) : (
-              <>
-                <Moon className="w-4 h-4 text-indigo-400" />
-                <span>Noche</span>
-              </>
-            )}
-          </button>
-
-          {isAdmin && (
-            <button
-              onClick={() => setIsSupabaseDrawerOpen(true)}
-              className="flex flex-col items-center gap-1 py-1 px-2 rounded-lg shrink-0 text-[#F0D080] font-bold"
-            >
-              <ShieldCheck className="w-4 h-4 text-[#F0D080]" />
-              <span>Admin</span>
-            </button>
-          )}
         </div>
       </header>
 
       {/* Main Content Area */}
-      <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8 md:py-12">
+      <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8 md:py-10">
         {activeTab === 'quiz' && (
           <SmartQuiz
             onSelectFragrance={(f) => setSelectedFragrance(f)}
@@ -524,21 +373,6 @@ export default function App() {
             onToggleFavorite={handleToggleFavorite}
             isAdmin={isAdmin}
             onRequireAdminAuth={() => setIsAdminModalOpen(true)}
-            onAddToCompare={handleToggleCompare}
-            compareListIds={compareList.map((c) => c.id)}
-          />
-        )}
-
-        {/* Compare Tab (Split-screen side-by-side comparison of 2 perfumes) */}
-        {activeTab === 'compare' && (
-          <FragranceComparator
-            compareList={compareList}
-            onRemoveFromCompare={handleRemoveFromCompare}
-            onClearCompare={handleClearCompare}
-            onSelectFragrance={(perfume) => setSelectedFragrance(perfume)}
-            onAddFragrance={(perfume) => handleToggleCompare(perfume)}
-            favorites={favorites}
-            onToggleFavorite={handleToggleFavorite}
           />
         )}
 
@@ -553,7 +387,7 @@ export default function App() {
                 Fragancias Favoritas Guardadas
               </h2>
               <p className="text-stone-400 text-sm mt-1">
-                Tus perfumes favoritos para consulta inmediata o adquisición.
+                Tus perfumes favoritos guardados para consulta y exploración olfativa.
               </p>
             </div>
 
@@ -618,55 +452,7 @@ export default function App() {
         )}
       </main>
 
-      {/* Floating Bottom Comparison Bar (appears when items are selected for comparison and user is not in compare tab) */}
-      {compareList.length > 0 && activeTab !== 'compare' && (
-        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-40 bg-[#141414]/95 backdrop-blur-md border border-[#C9A84C]/60 rounded-2xl p-2.5 sm:px-4 sm:py-3 shadow-2xl shadow-black/80 flex items-center gap-3 animate-in fade-in slide-in-from-bottom-4 duration-300 max-w-[92vw]">
-          <div className="flex items-center gap-2">
-            <div className="flex -space-x-2">
-              {compareList.map((item) => (
-                <div
-                  key={item.id}
-                  className="w-9 h-9 rounded-full bg-black border-2 border-[#C9A84C] overflow-hidden flex items-center justify-center shadow"
-                  title={`${item.brand} - ${item.name}`}
-                >
-                  <img
-                    src={getPerfumeBottlePhoto(item.name, item.gender, item.image, item.code)}
-                    alt={item.name}
-                    className="w-full h-full object-contain p-0.5"
-                  />
-                </div>
-              ))}
-            </div>
-            <div className="hidden sm:block text-left">
-              <p className="text-[11px] font-bold text-stone-100 leading-tight">
-                {compareList.length === 1 ? '1 perfume seleccionado' : '2 perfumes listos'}
-              </p>
-              <p className="text-[10px] text-stone-400 leading-tight">
-                {compareList.map((c) => c.code).join(' vs ')}
-              </p>
-            </div>
-          </div>
-
-          <div className="flex items-center gap-1.5 ml-2">
-            <button
-              onClick={() => setActiveTab('compare')}
-              className="px-3.5 py-1.5 rounded-xl bg-gradient-to-r from-[#C9A84C] to-[#F0D080] text-stone-950 text-xs font-bold flex items-center gap-1.5 shadow hover:brightness-105 transition-all cursor-pointer"
-            >
-              <Scale className="w-3.5 h-3.5" />
-              <span>Comparar {compareList.length === 2 ? 'Ahora' : ''}</span>
-            </button>
-            <button
-              onClick={handleClearCompare}
-              className="p-1.5 rounded-lg text-stone-400 hover:text-stone-200 hover:bg-stone-800/60 transition-colors"
-              title="Vaciar comparación"
-            >
-              ✕
-            </button>
-          </div>
-        </div>
-      )}
-
-      {/* Fragrance Modal (with exact same info as winner + always-visible similars) */}
+      {/* Fragrance Modal */}
       <FragranceModal
         fragrance={selectedFragrance}
         onClose={() => setSelectedFragrance(null)}
@@ -675,8 +461,6 @@ export default function App() {
         onSelectAnother={(f) => setSelectedFragrance(f)}
         isAdmin={isAdmin}
         onRequireAdminAuth={() => setIsAdminModalOpen(true)}
-        onAddToCompare={handleToggleCompare}
-        isCompared={selectedFragrance ? compareList.some((c) => c.id === selectedFragrance.id) : false}
       />
 
       {/* Supabase Drawer (Protected for Administrator only) */}

@@ -1,6 +1,11 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { CatalogFragrance, CATALOG, ALL_UNIQUE_NOTES } from '../data/fraganzaCatalog';
-import { getCustomizedCatalog } from '../services/catalogStore';
+import {
+  getCustomizedCatalog,
+  deleteNoteGlobally,
+  mergeNotesGlobally,
+  updateNoteCategoryGlobally
+} from '../services/catalogStore';
 import { getNoteDetail, FRAGRANTICA_NOTES, NoteDetail } from '../data/fragranticaNotesDictionary';
 import {
   getRealNotePhoto,
@@ -25,7 +30,11 @@ import {
   Droplets,
   RotateCcw,
   CheckCircle2,
-  SlidersHorizontal
+  SlidersHorizontal,
+  ShieldCheck,
+  Trash2,
+  GitMerge,
+  Edit3
 } from 'lucide-react';
 
 interface AdvancedSearchProps {
@@ -64,6 +73,15 @@ export const AdvancedSearch: React.FC<AdvancedSearchProps> = ({
   // Glossary filter state
   const [glossarySearch, setGlossarySearch] = useState<string>('');
   const [glossaryFamily, setGlossaryFamily] = useState<string>('Todas');
+
+  // Admin Note Manager modal state
+  const isAdmin = typeof window !== 'undefined' && sessionStorage.getItem('fraganza_admin_logged') === 'true';
+  const [isAdminNoteManagerOpen, setIsAdminNoteManagerOpen] = useState(false);
+  const [adminActiveTab, setAdminActiveTab] = useState<'delete' | 'merge' | 'category'>('delete');
+  const [adminSelectedNote, setAdminSelectedNote] = useState<string>('Vainilla');
+  const [adminTargetMergeNote, setAdminTargetMergeNote] = useState<string>('Vainilla');
+  const [adminNewCategory, setAdminNewCategory] = useState<string>('Gourmand & Dulces');
+  const [adminActionStatus, setAdminActionStatus] = useState<string | null>(null);
 
   // Dynamic catalog containing admin overrides
   const [catalogList, setCatalogList] = useState<CatalogFragrance[]>(() => getCustomizedCatalog());
@@ -502,11 +520,26 @@ export const AdvancedSearch: React.FC<AdvancedSearchProps> = ({
 
             {/* FRAGRANTICA-STYLE VISUAL NOTE GRID (Real photographic ingredient tiles) */}
             <div className="space-y-2">
-              <div className="flex items-center justify-between text-xs text-stone-400 px-1">
+              <div className="flex items-center justify-between text-xs text-stone-400 px-1 flex-wrap gap-2">
                 <span>Catálogo de Notas Olfativas con Fotografía Real</span>
-                <span className="text-[11px] text-stone-500">
-                  [+] Añadir · [-] Excluir · [?] Ver reseña
-                </span>
+                <div className="flex items-center gap-2">
+                  {isAdmin && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setAdminSelectedNote(displayedNotes[0] || 'Vainilla');
+                        setIsAdminNoteManagerOpen(true);
+                      }}
+                      className="px-3 py-1 rounded-xl bg-[#C9A84C]/20 border border-[#C9A84C] text-[#F0D080] hover:bg-[#C9A84C]/30 text-xs font-bold flex items-center gap-1.5 shadow"
+                    >
+                      <ShieldCheck className="w-3.5 h-3.5" />
+                      <span>Gestionar Notas Repetidas / Familias</span>
+                    </button>
+                  )}
+                  <span className="text-[11px] text-stone-500">
+                    [+] Añadir · [-] Excluir · [?] Ver reseña
+                  </span>
+                </div>
               </div>
 
               <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 lg:grid-cols-8 gap-3 max-h-[460px] overflow-y-auto p-2 rounded-2xl bg-[#0a0a0a] border border-stone-800/80">
@@ -527,6 +560,25 @@ export const AdvancedSearch: React.FC<AdvancedSearchProps> = ({
                           : 'bg-[#121212] border-stone-800/80 hover:border-[#C9A84C]/50 hover:bg-[#181818]'
                       }`}
                     >
+                      {/* Admin quick manage button */}
+                      {isAdmin && (
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setAdminSelectedNote(note);
+                            setAdminTargetMergeNote(note.replace(/[,.]/g, '').trim());
+                            const detail = getNoteDetail(note);
+                            setAdminNewCategory(detail?.family || 'Gourmand & Dulces');
+                            setIsAdminNoteManagerOpen(true);
+                          }}
+                          title={`Gestionar nota "${note}" (eliminar / fusionar / familia)`}
+                          className="absolute -top-1.5 -left-1.5 z-10 p-1 rounded-full bg-stone-900 border border-[#C9A84C] text-[#F0D080] hover:bg-[#C9A84C] hover:text-stone-950 transition-colors shadow"
+                        >
+                          <Edit3 className="w-3 h-3" />
+                        </button>
+                      )}
+
                       {/* Real Photograph Tile (Rounded square on white background like Fragrantica) */}
                       <div
                         onClick={() => toggleIncludeNote(note)}
@@ -1046,6 +1098,277 @@ export const AdvancedSearch: React.FC<AdvancedSearchProps> = ({
                     </div>
                   ))}
                 </div>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* ============================================================== */}
+      {/* ADMIN NOTE MANAGER MODAL (Delete typos, merge duplicates, recategorize) */}
+      {/* ============================================================== */}
+      {isAdminNoteManagerOpen && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/85 backdrop-blur-md animate-in fade-in duration-200"
+          onClick={() => setIsAdminNoteManagerOpen(false)}
+        >
+          <div
+            className="relative w-full max-w-2xl bg-[#0f0f0f] border border-[#C9A84C]/50 rounded-3xl shadow-2xl p-6 sm:p-7 space-y-6 max-h-[92vh] overflow-y-auto"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Header */}
+            <div className="flex items-center justify-between border-b border-stone-800 pb-4">
+              <div className="flex items-center gap-2.5">
+                <div className="p-2 rounded-xl bg-[#C9A84C]/20 border border-[#C9A84C] text-[#F0D080]">
+                  <ShieldCheck className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="text-lg font-bold font-serif-luxury text-stone-100">
+                    Panel Administrador de Notas Olfativas
+                  </h3>
+                  <p className="text-xs text-stone-400">
+                    Elimina notas repetidas con coma o error tipográfico, fusiónalas y reorganiza sus familias.
+                  </p>
+                </div>
+              </div>
+              <button
+                onClick={() => setIsAdminNoteManagerOpen(false)}
+                className="p-2 rounded-xl bg-stone-900 text-stone-400 hover:text-white hover:bg-stone-800 transition"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Status Message */}
+            {adminActionStatus && (
+              <div className="p-3 rounded-xl bg-[#C9A84C]/20 border border-[#C9A84C] text-xs font-semibold text-[#F0D080] flex items-center gap-2 animate-in fade-in">
+                <CheckCircle2 className="w-4 h-4 text-[#F0D080] shrink-0" />
+                <span>{adminActionStatus}</span>
+              </div>
+            )}
+
+            {/* Tabs */}
+            <div className="flex rounded-xl bg-stone-900 p-1 border border-stone-800 gap-1 text-xs">
+              <button
+                onClick={() => setAdminActiveTab('delete')}
+                className={`flex-1 py-2 rounded-lg font-bold flex items-center justify-center gap-1.5 transition ${
+                  adminActiveTab === 'delete'
+                    ? 'bg-rose-500/20 text-rose-300 border border-rose-500/50'
+                    : 'text-stone-400 hover:text-stone-200'
+                }`}
+              >
+                <Trash2 className="w-3.5 h-3.5" />
+                <span>Eliminar Nota</span>
+              </button>
+
+              <button
+                onClick={() => setAdminActiveTab('merge')}
+                className={`flex-1 py-2 rounded-lg font-bold flex items-center justify-center gap-1.5 transition ${
+                  adminActiveTab === 'merge'
+                    ? 'bg-[#C9A84C]/20 text-[#F0D080] border border-[#C9A84C]/50'
+                    : 'text-stone-400 hover:text-stone-200'
+                }`}
+              >
+                <GitMerge className="w-3.5 h-3.5" />
+                <span>Fusionar Repetidas</span>
+              </button>
+
+              <button
+                onClick={() => setAdminActiveTab('category')}
+                className={`flex-1 py-2 rounded-lg font-bold flex items-center justify-center gap-1.5 transition ${
+                  adminActiveTab === 'category'
+                    ? 'bg-indigo-500/20 text-indigo-300 border border-indigo-500/50'
+                    : 'text-stone-400 hover:text-stone-200'
+                }`}
+              >
+                <Layers className="w-3.5 h-3.5" />
+                <span>Corregir Familia</span>
+              </button>
+            </div>
+
+            {/* TAB 1: ELIMINAR NOTA */}
+            {adminActiveTab === 'delete' && (
+              <div className="space-y-4 text-xs">
+                <div>
+                  <label className="text-stone-300 font-semibold block mb-1.5">
+                    Selecciona la nota que deseas eliminar de todo el catálogo:
+                  </label>
+                  <select
+                    value={adminSelectedNote}
+                    onChange={(e) => setAdminSelectedNote(e.target.value)}
+                    className="w-full bg-black/80 border border-stone-700 text-stone-100 rounded-xl p-3 focus:border-rose-500 focus:outline-none"
+                  >
+                    {availableNotesForPosition.map((n) => (
+                      <option key={n} value={n}>
+                        {n} ({noteFrequencyMap[n] || 0} perfumes)
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div className="p-3.5 rounded-xl bg-rose-950/20 border border-rose-900/60 text-rose-300 space-y-1">
+                  <p className="font-semibold">⚠️ Advertencia de eliminación global:</p>
+                  <p className="text-[11px] text-rose-400/90 leading-relaxed">
+                    Al confirmar, la nota <strong className="text-rose-200">"{adminSelectedNote}"</strong> será suprimida de todas las pirámides (salida, corazón, fondo y acordes) en los {noteFrequencyMap[adminSelectedNote] || 0} perfumes que la contienen.
+                  </p>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={async () => {
+                    if (!adminSelectedNote) return;
+                    const count = await deleteNoteGlobally(adminSelectedNote);
+                    setAdminActionStatus(`Nota "${adminSelectedNote}" eliminada con éxito de ${count} perfumes.`);
+                    setTimeout(() => setAdminActionStatus(null), 4000);
+                  }}
+                  className="w-full py-3 rounded-xl bg-rose-600 hover:bg-rose-500 text-white font-bold flex items-center justify-center gap-2 shadow-lg transition"
+                >
+                  <Trash2 className="w-4 h-4" />
+                  <span>Eliminar "{adminSelectedNote}" de todas las fragancias</span>
+                </button>
+              </div>
+            )}
+
+            {/* TAB 2: FUSIONAR NOTAS REPETIDAS */}
+            {adminActiveTab === 'merge' && (
+              <div className="space-y-4 text-xs">
+                <div>
+                  <label className="text-stone-300 font-semibold block mb-1">
+                    1. Nota con error, coma sobrante o letra duplicada (Origen):
+                  </label>
+                  <input
+                    type="text"
+                    value={adminSelectedNote}
+                    onChange={(e) => setAdminSelectedNote(e.target.value)}
+                    placeholder="Ej: Vainilla,"
+                    className="w-full bg-black/80 border border-stone-700 text-stone-100 rounded-xl p-3 focus:border-[#C9A84C] focus:outline-none mb-2"
+                  />
+                  <select
+                    value={adminSelectedNote}
+                    onChange={(e) => setAdminSelectedNote(e.target.value)}
+                    className="w-full bg-black/80 border border-stone-700 text-stone-300 rounded-xl p-2.5 text-xs focus:border-[#C9A84C] focus:outline-none"
+                  >
+                    {availableNotesForPosition.map((n) => (
+                      <option key={n} value={n}>
+                        {n} ({noteFrequencyMap[n] || 0} perfumes)
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div>
+                  <label className="text-stone-300 font-semibold block mb-1">
+                    2. Nota canónica oficial a la que se unificará (Destino):
+                  </label>
+                  <input
+                    type="text"
+                    value={adminTargetMergeNote}
+                    onChange={(e) => setAdminTargetMergeNote(e.target.value)}
+                    placeholder="Ej: Vainilla"
+                    className="w-full bg-black/80 border border-stone-700 text-stone-100 rounded-xl p-3 focus:border-emerald-500 focus:outline-none mb-2"
+                  />
+                  <select
+                    value={adminTargetMergeNote}
+                    onChange={(e) => setAdminTargetMergeNote(e.target.value)}
+                    className="w-full bg-black/80 border border-stone-700 text-stone-300 rounded-xl p-2.5 text-xs focus:border-emerald-500 focus:outline-none"
+                  >
+                    {availableNotesForPosition.map((n) => (
+                      <option key={n} value={n}>
+                        {n} ({noteFrequencyMap[n] || 0} perfumes)
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div className="p-3.5 rounded-xl bg-amber-950/20 border border-amber-900/60 text-amber-300 text-[11px] leading-relaxed">
+                  Cualquier perfume que tenga <strong className="text-amber-100">"{adminSelectedNote}"</strong> será actualizado automáticamente para usar <strong className="text-emerald-300">"{adminTargetMergeNote}"</strong>, unificando la nota sin duplicar ocurrencias.
+                </div>
+
+                <button
+                  type="button"
+                  onClick={async () => {
+                    if (!adminSelectedNote.trim() || !adminTargetMergeNote.trim()) return;
+                    const count = await mergeNotesGlobally(adminSelectedNote.trim(), adminTargetMergeNote.trim());
+                    setAdminActionStatus(`Se fusionó "${adminSelectedNote}" en "${adminTargetMergeNote}" en ${count} perfumes.`);
+                    setTimeout(() => setAdminActionStatus(null), 4000);
+                  }}
+                  className="w-full py-3 rounded-xl bg-gradient-to-r from-[#C9A84C] to-[#F0D080] text-stone-950 font-bold flex items-center justify-center gap-2 shadow-lg hover:brightness-110 transition"
+                >
+                  <GitMerge className="w-4 h-4 text-stone-950" />
+                  <span>Fusionar "{adminSelectedNote}" → "{adminTargetMergeNote}"</span>
+                </button>
+              </div>
+            )}
+
+            {/* TAB 3: CORREGIR FAMILIA OLFATIVA DE LA NOTA */}
+            {adminActiveTab === 'category' && (
+              <div className="space-y-4 text-xs">
+                <div>
+                  <label className="text-stone-300 font-semibold block mb-1">
+                    Selecciona la nota que deseas reclasificar:
+                  </label>
+                  <select
+                    value={adminSelectedNote}
+                    onChange={(e) => {
+                      setAdminSelectedNote(e.target.value);
+                      const detail = getNoteDetail(e.target.value);
+                      if (detail?.family) setAdminNewCategory(detail.family);
+                    }}
+                    className="w-full bg-black/80 border border-stone-700 text-stone-100 rounded-xl p-3 focus:border-indigo-500 focus:outline-none"
+                  >
+                    {availableNotesForPosition.map((n) => (
+                      <option key={n} value={n}>
+                        {n} ({noteFrequencyMap[n] || 0} perfumes)
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div>
+                  <label className="text-stone-300 font-semibold block mb-1">
+                    Familia / Categoría Olfativa correcta:
+                  </label>
+                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 pt-1">
+                    {[
+                      'Florales',
+                      'Cítricos',
+                      'Frutales',
+                      'Gourmand & Dulces',
+                      'Maderas',
+                      'Especias',
+                      'Aromáticas & Verdes',
+                      'Acuáticas & Frescas',
+                      'Cuero & Resinas'
+                    ].map((cat) => (
+                      <button
+                        key={cat}
+                        type="button"
+                        onClick={() => setAdminNewCategory(cat)}
+                        className={`p-3 rounded-xl border text-left font-medium transition ${
+                          adminNewCategory === cat
+                            ? 'bg-indigo-600/30 border-indigo-400 text-white font-bold ring-1 ring-indigo-400'
+                            : 'bg-black/60 border-stone-800 text-stone-300 hover:border-stone-700'
+                        }`}
+                      >
+                        {cat}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={async () => {
+                    if (!adminSelectedNote) return;
+                    await updateNoteCategoryGlobally(adminSelectedNote, adminNewCategory);
+                    setAdminActionStatus(`Familia de "${adminSelectedNote}" actualizada a "${adminNewCategory}".`);
+                    setTimeout(() => setAdminActionStatus(null), 4000);
+                  }}
+                  className="w-full py-3 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-bold flex items-center justify-center gap-2 shadow-lg transition"
+                >
+                  <Check className="w-4 h-4" />
+                  <span>Guardar familia "{adminNewCategory}" para "{adminSelectedNote}"</span>
+                </button>
               </div>
             )}
           </div>

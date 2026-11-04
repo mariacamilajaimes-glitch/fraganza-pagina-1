@@ -17,8 +17,7 @@ import {
   Check,
   Edit3,
   Camera,
-  Lock,
-  Scale
+  Lock
 } from 'lucide-react';
 
 interface OfficialCatalogViewProps {
@@ -27,8 +26,6 @@ interface OfficialCatalogViewProps {
   onToggleFavorite: (id: string) => void;
   isAdmin?: boolean;
   onRequireAdminAuth?: () => void;
-  onAddToCompare?: (fragrance: CatalogFragrance) => void;
-  compareListIds?: string[];
 }
 
 export type GenderFilter = 'Todos' | 'Dama' | 'Caballero' | 'Unisex';
@@ -39,8 +36,6 @@ export const OfficialCatalogView: React.FC<OfficialCatalogViewProps> = ({
   onToggleFavorite,
   isAdmin = false,
   onRequireAdminAuth,
-  onAddToCompare,
-  compareListIds = [],
 }) => {
   const [selectedGender, setSelectedGender] = useState<GenderFilter>('Todos');
   const [searchTerm, setSearchTerm] = useState('');
@@ -396,24 +391,6 @@ export const OfficialCatalogView: React.FC<OfficialCatalogViewProps> = ({
                         title="Administrador: Cambiar foto real o notas"
                       >
                         <Camera className="w-3.5 h-3.5" />
-                      </button>
-                    )}
-
-                    {onAddToCompare && (
-                      <button
-                        type="button"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          onAddToCompare(perfume);
-                        }}
-                        className={`p-2 rounded-xl backdrop-blur-md border transition ${
-                          compareListIds.includes(perfume.id)
-                            ? 'bg-[#C9A84C] text-stone-950 border-[#F0D080] font-bold shadow'
-                            : 'bg-black/80 border-stone-700 text-stone-300 hover:text-[#F0D080]'
-                        }`}
-                        title={compareListIds.includes(perfume.id) ? 'Quitar de la comparativa' : 'Añadir a comparativa'}
-                      >
-                        <Scale className="w-4 h-4" />
                       </button>
                     )}
 

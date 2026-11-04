@@ -52,6 +52,8 @@ export const SmartQuiz: React.FC<SmartQuizProps> = ({
   const [exclusionChoice, setExclusionChoice] = useState<string>('Estoy abierto/a a todo');
   const [occasionChoice, setOccasionChoice] = useState<string>('Ocasiones especiales');
 
+  const isForMe = targetUser === 'Para mí';
+
   // Subfamilies map based on Question 5
   const subFamiliesMap: Record<MainCategory, string[]> = {
     'Floral': [
@@ -449,10 +451,10 @@ export const SmartQuiz: React.FC<SmartQuizProps> = ({
           <div className="space-y-6 animate-in fade-in slide-in-from-right-4 duration-300">
             <div>
               <h2 className="text-2xl md:text-3xl font-bold font-serif-luxury text-stone-100">
-                ¿Qué perfil o género de fragancia busca la persona?
+                {isForMe ? '¿Qué perfil o género de fragancia buscas para ti?' : '¿Qué perfil o género de fragancia busca la persona?'}
               </h2>
               <p className="text-stone-400 text-xs md:text-sm mt-1">
-                Filtraremos de inmediato nuestro catálogo según el perfil seleccionado.
+                {isForMe ? 'Filtraremos de inmediato nuestro catálogo según tu preferencia.' : 'Filtraremos de inmediato nuestro catálogo según el perfil seleccionado.'}
               </p>
             </div>
 
@@ -490,10 +492,10 @@ export const SmartQuiz: React.FC<SmartQuizProps> = ({
           <div className="space-y-6 animate-in fade-in slide-in-from-right-4 duration-300">
             <div>
               <h2 className="text-2xl md:text-3xl font-bold font-serif-luxury text-stone-100">
-                ¿En qué rango de edad se encuentra la persona?
+                {isForMe ? '¿En qué rango de edad te encuentras?' : '¿En qué rango de edad se encuentra la persona?'}
               </h2>
               <p className="text-stone-400 text-xs md:text-sm mt-1">
-                Ayuda a calibrar entre propuestas juveniles dinámicas o creaciones maduras y señoriales.
+                {isForMe ? 'Nos permite calibrar entre propuestas juveniles dinámicas o creaciones maduras y señoriales para ti.' : 'Ayuda a calibrar entre propuestas juveniles dinámicas o creaciones maduras y señoriales.'}
               </p>
             </div>
 
@@ -527,10 +529,10 @@ export const SmartQuiz: React.FC<SmartQuizProps> = ({
           <div className="space-y-6 animate-in fade-in slide-in-from-right-4 duration-300">
             <div>
               <h2 className="text-2xl md:text-3xl font-bold font-serif-luxury text-stone-100">
-                ¿Qué tipo de piel posee la persona?
+                {isForMe ? '¿Qué tipo de piel tienes?' : '¿Qué tipo de piel posee la persona?'}
               </h2>
               <p className="text-stone-400 text-xs md:text-sm mt-1">
-                La química dérmica y el nivel de hidratación influyen directamente en la fijación y duración del perfume.
+                {isForMe ? 'Tu química dérmica y nivel de hidratación influyen directamente en la fijación y duración de tu perfume.' : 'La química dérmica y el nivel de hidratación influyen directamente en la fijación y duración del perfume.'}
               </p>
             </div>
 
@@ -587,10 +589,10 @@ export const SmartQuiz: React.FC<SmartQuizProps> = ({
           <div className="space-y-6 animate-in fade-in slide-in-from-right-4 duration-300">
             <div>
               <h2 className="text-2xl md:text-3xl font-bold font-serif-luxury text-stone-100">
-                ¿Qué nivel de intensidad o proyección prefiere la persona?
+                {isForMe ? '¿Qué nivel de intensidad o proyección prefieres?' : '¿Qué nivel de intensidad o proyección prefiere la persona?'}
               </h2>
               <p className="text-stone-400 text-xs md:text-sm mt-1">
-                Define el radio de proyección y la huella sensorial que dejará en el ambiente.
+                {isForMe ? 'Define el radio de proyección y la huella sensorial que deseas dejar en tu entorno.' : 'Define el radio de proyección y la huella sensorial que dejará en el ambiente.'}
               </p>
             </div>
 
@@ -641,10 +643,10 @@ export const SmartQuiz: React.FC<SmartQuizProps> = ({
           <div className="space-y-6 animate-in fade-in slide-in-from-right-4 duration-300">
             <div>
               <h2 className="text-2xl md:text-3xl font-bold font-serif-luxury text-stone-100">
-                ¿Qué familia olfativa despierta mayor afinidad en la persona?
+                {isForMe ? '¿Qué familia olfativa despierta mayor afinidad en ti?' : '¿Qué familia olfativa despierta mayor afinidad en la persona?'}
               </h2>
               <p className="text-stone-400 text-xs md:text-sm mt-1">
-                Representa el pilar y carácter aromático predominante de la fragancia.
+                {isForMe ? 'Representa el pilar y carácter aromático predominante que más disfrutas.' : 'Representa el pilar y carácter aromático predominante de la fragancia.'}
               </p>
             </div>
 
@@ -702,7 +704,7 @@ export const SmartQuiz: React.FC<SmartQuizProps> = ({
             <div>
               <div className="flex items-center justify-between flex-wrap gap-2">
                 <h2 className="text-2xl md:text-3xl font-bold font-serif-luxury text-stone-100">
-                  ¿Cuáles de estos acordes aromáticos prefiere o disfruta más la persona?
+                  {isForMe ? '¿Cuáles de estos acordes aromáticos prefieres o disfrutas más?' : '¿Cuáles de estos acordes aromáticos prefiere o disfruta más la persona?'}
                 </h2>
                 <span className="text-xs font-semibold px-3 py-1 rounded-full bg-[#C9A84C]/20 text-[#F0D080] border border-[#C9A84C]/40">
                   Elige hasta dos ({subFamilyChoices.length}/2)
@@ -816,10 +818,12 @@ export const SmartQuiz: React.FC<SmartQuizProps> = ({
           <div className="space-y-6 animate-in fade-in slide-in-from-right-4 duration-300">
             <div>
               <h2 className="text-2xl md:text-3xl font-bold font-serif-luxury text-stone-100">
-                ¿Qué estilo sensorial o personalidad define mejor a la persona?
+                {isForMe ? '¿Qué personalidad o estilo sensorial buscas en tu fragancia?' : '¿Qué estilo sensorial o personalidad define mejor a esa persona?'}
               </h2>
               <p className="text-stone-400 text-xs md:text-sm mt-1">
-                Define la impronta olfativa, carácter y presencia que más sintoniza con sus gustos personales.
+                {isForMe
+                  ? 'Calibrado con los rasgos distintivos de la ficha oficial de Fraganza (sofisticada, seductora, cálida, deportiva, audaz...).'
+                  : 'Define la impronta olfativa, carácter y presencia que más sintoniza con sus gustos personales.'}
               </p>
             </div>
 
@@ -828,38 +832,50 @@ export const SmartQuiz: React.FC<SmartQuizProps> = ({
                 {
                   id: 'Elegante & Sofisticada',
                   icon: '👑',
-                  title: 'Elegante & Sofisticada',
-                  desc: 'Busca distinción refinada, sobriedad, madurez segura y un porte pulcro que inspira respeto.'
+                  title: 'Sofisticada & Elegante',
+                  desc: isForMe
+                    ? 'Buscas distinción refinada, sobriedad, madurez segura y un porte pulcro que inspira respeto.'
+                    : 'Busca distinción refinada, sobriedad, madurez segura y un porte pulcro que inspira respeto.'
                 },
                 {
                   id: 'Seductora & Magnética',
                   icon: '🔥',
-                  title: 'Seductora & Magnética',
-                  desc: 'Prefiere dejar una estela misteriosa, sensual y cautivadora que atraiga miradas en citas y veladas íntimas.'
+                  title: 'Seductora & Fiestera',
+                  desc: isForMe
+                    ? 'Prefieres dejar una estela magnética, cautivadora y sensual que atraiga miradas en citas y fiestas.'
+                    : 'Prefiere dejar una estela misteriosa, sensual y cautivadora que atraiga miradas en citas y veladas.'
                 },
                 {
                   id: 'Fresca & Vitalista',
                   icon: '🌿',
-                  title: 'Fresca & Vitalista',
-                  desc: 'De espíritu libre, enérgico y dinámico; ama la ligereza limpia de la brisa marina, el agua y la naturaleza vivificante.'
+                  title: 'Deportiva, Limpia & Vitalista',
+                  desc: isForMe
+                    ? 'Espíritu libre, activo y enérgico; amas la ligereza limpia de la brisa marina, los cítricos y el agua.'
+                    : 'De espíritu libre, enérgico y dinámico; ama la ligereza limpia de la brisa marina, el agua y la vitalidad.'
                 },
                 {
                   id: 'Cálida & Acaramelada',
                   icon: '🍯',
-                  title: 'Cálida & Acaramelada',
-                  desc: 'Disfruta de la dulzura reconfortante, notas golosas que provocan ternura, cercanía y una sensación acogedora.'
-                },
-                {
-                  id: 'Vanguardista & Pulcra',
-                  icon: '✨',
-                  title: 'Vanguardista & Pulcra',
-                  desc: 'Moderna, cosmopolita y urbana; adora los aromas limpios, minimalistas, no invasivos y de corte contemporáneo.'
+                  title: 'Cálida, Acogedora & Dulce',
+                  desc: isForMe
+                    ? 'Disfrutas de la dulzura reconfortante, notas golosas y cálidas que provocan ternura y cercanía.'
+                    : 'Disfruta de la dulzura reconfortante, notas golosas que provocan ternura, cercanía y una sensación acogedora.'
                 },
                 {
                   id: 'Audaz & Envolvente',
                   icon: '💎',
-                  title: 'Audaz & Envolvente',
-                  desc: 'Extrovertida y con carácter firme; no teme llamar la atención con una estela opulenta, rica y protagónica.'
+                  title: 'Audaz & Con Carácter',
+                  desc: isForMe
+                    ? 'Carácter firme y seguro que no teme llamar la atención con una estela opulenta, rica y protagónica.'
+                    : 'Extrovertida y con carácter firme; no teme llamar la atención con una estela opulenta, rica y protagónica.'
+                },
+                {
+                  id: 'Vanguardista & Pulcra',
+                  icon: '✨',
+                  title: 'Romántica, Chic & Delicada',
+                  desc: isForMe
+                    ? 'Moderna y detallista; te fascinan los aromas limpios, sutiles, armónicos y de corte contemporáneo.'
+                    : 'Moderna, cosmopolita y urbana; adora los aromas limpios, minimalistas, no invasivos y delicados.'
                 }
               ].map((opt) => (
                 <button
@@ -890,10 +906,12 @@ export const SmartQuiz: React.FC<SmartQuizProps> = ({
           <div className="space-y-6 animate-in fade-in slide-in-from-right-4 duration-300">
             <div>
               <h2 className="text-2xl md:text-3xl font-bold font-serif-luxury text-stone-100">
-                ¿Existe alguna faceta o nota que la persona prefiera evitar?
+                {isForMe ? '¿Existe alguna faceta o aroma que prefieras evitar?' : '¿Existe alguna faceta o nota que esa persona prefiera evitar?'}
               </h2>
               <p className="text-stone-400 text-xs md:text-sm mt-1">
-                Filtro de exclusión negativa para descartar acordes o intensidades que le resulten incómodas.
+                {isForMe
+                  ? 'Filtro para descartar acordes o intensidades que no sean de tu agrado.'
+                  : 'Filtro de exclusión negativa para descartar acordes o intensidades que le resulten incómodas.'}
               </p>
             </div>
 
@@ -929,10 +947,12 @@ export const SmartQuiz: React.FC<SmartQuizProps> = ({
           <div className="space-y-6 animate-in fade-in slide-in-from-right-4 duration-300">
             <div>
               <h2 className="text-2xl md:text-3xl font-bold font-serif-luxury text-stone-100">
-                ¿En qué ocasión o escenario usará principalmente la fragancia la persona?
+                {isForMe ? '¿En qué ocasión o escenario usarás principalmente tu fragancia?' : '¿En qué ocasión o escenario usará principalmente la fragancia esa persona?'}
               </h2>
               <p className="text-stone-400 text-xs md:text-sm mt-1">
-                Determinará el escenario de uso idóneo y el consejo personalizado del perfumista.
+                {isForMe
+                  ? 'Determinará el escenario de uso idóneo y el consejo personalizado del perfumista para ti.'
+                  : 'Determinará el escenario de uso idóneo y el consejo personalizado del perfumista.'}
               </p>
             </div>
 

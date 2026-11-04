@@ -29,36 +29,36 @@
 }
 
 /* =========================================================================
-   GLOBAL DAY / LIGHT THEME (Modo Día / Blanco para toda la página)
+   GLOBAL DAY / LIGHT THEME (Modo Día / Blanco puro para toda la página)
    ========================================================================= */
 .theme-light,
 .theme-light body {
-  background-color: #f7f6f2 !important;
-  color: #1c1917 !important;
+  background-color: #ffffff !important;
+  color: #09090b !important;
 }
 
 .theme-light ::-webkit-scrollbar-track {
-  background: #e7e5e0;
+  background: #f4f4f5;
 }
 .theme-light ::-webkit-scrollbar-thumb {
-  background: #c5c2bb;
+  background: #d4d4d8;
 }
 .theme-light ::-webkit-scrollbar-thumb:hover {
-  background: #a8a49c;
+  background: #a1a1aa;
 }
 
-/* Cards & containers in light mode */
+/* Cards & containers in pure white mode */
 .theme-light .bg-\[\#0a0a0a\],
 .theme-light .bg-stone-950,
 .theme-light .bg-black {
-  background-color: #f7f6f2 !important;
+  background-color: #ffffff !important;
 }
 
 .theme-light header,
 .theme-light .bg-\[\#0a0a0a\]\/90,
 .theme-light .bg-\[\#0d0d0d\] {
-  background-color: rgba(247, 246, 242, 0.94) !important;
-  border-color: rgba(0, 0, 0, 0.09) !important;
+  background-color: rgba(255, 255, 255, 0.96) !important;
+  border-color: rgba(0, 0, 0, 0.08) !important;
 }
 
 .theme-light .bg-\[\#0e0e0e\],
@@ -72,26 +72,53 @@
 .theme-light .bg-black\/60,
 .theme-light .bg-black\/80 {
   background-color: #ffffff !important;
-  border-color: rgba(0, 0, 0, 0.09) !important;
-  box-shadow: 0 4px 18px -2px rgba(0, 0, 0, 0.04);
+  border-color: rgba(0, 0, 0, 0.1) !important;
+  box-shadow: 0 4px 20px -2px rgba(0, 0, 0, 0.05);
 }
 
-/* Text colors in light mode */
+/* Bottle image containers in white mode: pure white background + mix-blend-multiply so only the bottle is visible */
+.theme-light img[src*="aistudio"],
+.theme-light img[src*="fraganza"],
+.theme-light .perfume-bottle-img,
+.theme-light img[alt*="Perfume"],
+.theme-light img[alt*="Fragancia"],
+.theme-light img[alt*="Nitro"],
+.theme-light img[alt*="Dior"],
+.theme-light img[alt*="Sauvage"],
+.theme-light img[alt*="Aventus"],
+.theme-light img[alt*="Creed"] {
+  mix-blend-mode: multiply !important;
+}
+
+.theme-light .perfume-photo-card,
+.theme-light .bottle-container,
+.theme-light div[class*="rounded-2xl"][class*="overflow-hidden"][class*="border"] {
+  background-color: #ffffff !important;
+  background-image: none !important;
+}
+
+/* Text colors in light mode: stark contrast */
 .theme-light .text-stone-100,
 .theme-light .text-stone-200 {
-  color: #1a1a19 !important;
+  color: #09090b !important;
 }
 
 .theme-light .text-stone-300 {
-  color: #383533 !important;
+  color: #18181b !important;
 }
 
 .theme-light .text-stone-400 {
-  color: #57534e !important;
+  color: #52525b !important;
 }
 
 .theme-light .text-stone-500 {
-  color: #78716c !important;
+  color: #71717a !important;
+}
+
+/* Gold text on light mode: high-contrast warm luxury amber */
+.theme-light .text-\[\#F0D080\],
+.theme-light .text-\[\#C9A84C\] {
+  color: #936814 !important;
 }
 
 /* Borders in light mode */
@@ -100,7 +127,7 @@
 .theme-light .border-stone-800\/80,
 .theme-light .border-stone-800\/60,
 .theme-light .border-stone-700 {
-  border-color: rgba(0, 0, 0, 0.1) !important;
+  border-color: rgba(0, 0, 0, 0.12) !important;
 }
 
 /* Inputs & selects in light mode */
@@ -108,16 +135,16 @@
 .theme-light select,
 .theme-light textarea {
   background-color: #ffffff !important;
-  color: #1a1a19 !important;
-  border-color: rgba(0, 0, 0, 0.15) !important;
+  color: #09090b !important;
+  border-color: rgba(0, 0, 0, 0.18) !important;
 }
 .theme-light input::placeholder,
 .theme-light textarea::placeholder {
-  color: #8c8881 !important;
+  color: #71717a !important;
 }
 
 /* Footers in light mode */
 .theme-light footer {
-  background-color: #ece9e2 !important;
+  background-color: #f4f4f5 !important;
   border-color: rgba(0, 0, 0, 0.08) !important;
 }

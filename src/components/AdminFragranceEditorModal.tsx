@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { CatalogFragrance } from '../data/fraganzaCatalog';
+import { CatalogFragrance, ALL_UNIQUE_NOTES } from '../data/fraganzaCatalog';
 import { saveAdminFragranceUpdate, resetAdminFragranceUpdate, getStoredOverrides, AccordItem } from '../services/catalogStore';
 import { getPerfumeBottlePhoto, computeFragranticaAccords, getAccordColor, FRAGRANTICA_ACCORD_COLORS } from '../data/fragranceVisuals';
 import { compressImage } from '../utils/imageCompressor';
@@ -20,7 +20,10 @@ import {
   Moon,
   Plus,
   Trash2,
-  Palette
+  Palette,
+  Edit3,
+  Search,
+  Tag
 } from 'lucide-react';
 
 interface AdminFragranceEditorModalProps {
@@ -63,6 +66,17 @@ export const AdminFragranceEditorModal: React.FC<AdminFragranceEditorModalProps>
   const overrides = getStoredOverrides();
   const currentOverride = overrides[fragrance.code] || overrides[fragrance.id] || {};
 
+  // Basic identification info (Name, Code, Original Brand/House)
+  const [fragranceName, setFragranceName] = useState<string>(
+    currentOverride.name || fragrance.name || ''
+  );
+  const [fragranceCode, setFragranceCode] = useState<string>(
+    currentOverride.code || fragrance.code || ''
+  );
+  const [fragranceBrand, setFragranceBrand] = useState<string>(
+    currentOverride.brand || fragrance.brand || ''
+  );
+
   const [imageUrl, setImageUrl] = useState<string>(
     currentOverride.image || fragrance.image || ''
   );
@@ -82,6 +96,10 @@ export const AdminFragranceEditorModal: React.FC<AdminFragranceEditorModalProps>
     currentOverride.sensation || fragrance.sensation || ''
   );
 
+  // Note picker state for pyramid builder
+  const [selectedPyramidTarget, setSelectedPyramidTarget] = useState<'top' | 'heart' | 'base'>('top');
+  const [notePickerSearch, setNotePickerSearch] = useState<string>('');
+
   // Day/Night and White/Black theme mode
   const [environment, setEnvironment] = useState<'Día' | 'Noche' | 'Indistinto'>(
     (currentOverride.environment as any) || fragrance.environment || 'Indistinto'
@@ -90,13 +108,16 @@ export const AdminFragranceEditorModal: React.FC<AdminFragranceEditorModalProps>
     currentOverride.themeMode || fragrance.themeMode || 'black'
   );
 
-  // Accords editor state
-  const initialAccords = currentOverride.mainAccords || computeFragranticaAccords(
-    fragrance.family,
-    fragrance.allNotes,
-    fragrance.sweetness,
-    fragrance.intensity
-  );
+  // Accords editor state - always sorted from highest to lowest percentage
+  const initialAccords = (
+    currentOverride.mainAccords ||
+    computeFragranticaAccords(
+      fragrance.family,
+      fragrance.allNotes,
+      fragrance.sweetness,
+      fragrance.intensity
+    )
+  ).sort((a, b) => b.percentage - a.percentage);
   const [accordsList, setAccordsList] = useState<AccordItem[]>(initialAccords);
   const [newAccordName, setNewAccordName] = useState<string>('');
 
@@ -231,7 +252,47 @@ export const AdminFragranceEditorModal: React.FC<AdminFragranceEditorModalProps>
     reader.readAsDataURL(file);
   };
 
-  // Accords handlers
+  // Helpers for pyramid notes
+  const cleanArray = (str: string) =>
+    str
+      .split(',')
+      .map((s) => s.trim())
+      .filter((s) => s.length > 0);
+
+  const addNoteToPyramid = (noteName: string, targetLayer: 'top' | 'heart' | 'base' = selectedPyramidTarget) => {
+    const clean = noteName.trim();
+    if (!clean) return;
+
+    if (targetLayer === 'top') {
+      const arr = cleanArray(topNotes);
+      if (!arr.some((n) => n.toLowerCase() === clean.toLowerCase())) {
+        setTopNotes([...arr, clean].join(', '));
+      }
+    } else if (targetLayer === 'heart') {
+      const arr = cleanArray(heartNotes);
+      if (!arr.some((n) => n.toLowerCase() === clean.toLowerCase())) {
+        setHeartNotes([...arr, clean].join(', '));
+      }
+    } else {
+      const arr = cleanArray(baseNotes);
+      if (!arr.some((n) => n.toLowerCase() === clean.toLowerCase())) {
+        setBaseNotes([...arr, clean].join(', '));
+      }
+    }
+  };
+
+  const removeNoteFromPyramid = (noteName: string, targetLayer: 'top' | 'heart' | 'base') => {
+    const target = noteName.trim().toLowerCase();
+    if (targetLayer === 'top') {
+      setTopNotes(cleanArray(topNotes).filter((n) => n.toLowerCase() !== target).join(', '));
+    } else if (targetLayer === 'heart') {
+      setHeartNotes(cleanArray(heartNotes).filter((n) => n.toLowerCase() !== target).join(', '));
+    } else {
+      setBaseNotes(cleanArray(baseNotes).filter((n) => n.toLowerCase() !== target).join(', '));
+    }
+  };
+
+  // Accords handlers - automatically keeps accords sorted from greatest to least percentage
   const handleAddAccord = (nameToAdd?: string) => {
     const name = (nameToAdd || newAccordName).trim().toLowerCase();
     if (!name) return;
@@ -250,7 +311,7 @@ export const AdminFragranceEditorModal: React.FC<AdminFragranceEditorModalProps>
         textColor: colorCfg.textColor,
         percentage: Math.max(50, 100 - accordsList.length * 5)
       }
-    ];
+    ].sort((a, b) => b.percentage - a.percentage);
 
     setAccordsList(updated);
     setNewAccordName('');
@@ -263,7 +324,8 @@ export const AdminFragranceEditorModal: React.FC<AdminFragranceEditorModalProps>
   const handleAccordPercentChange = (index: number, val: number) => {
     const updated = [...accordsList];
     updated[index] = { ...updated[index], percentage: val };
-    setAccordsList(updated);
+    // Always auto-sort from highest to lowest percentage
+    setAccordsList(updated.sort((a, b) => b.percentage - a.percentage));
   };
 
   const handleSave = async () => {
@@ -271,16 +333,11 @@ export const AdminFragranceEditorModal: React.FC<AdminFragranceEditorModalProps>
     setIsProcessing(true);
     setSaveError(null);
 
-    const cleanArray = (str: string) =>
-      str
-        .split(',')
-        .map((s) => s.trim())
-        .filter((s) => s.length > 0);
-
     const parsedTop = cleanArray(topNotes);
     const parsedHeart = cleanArray(heartNotes);
     const parsedBase = cleanArray(baseNotes);
     const allParsedNotes = Array.from(new Set([...parsedTop, ...parsedHeart, ...parsedBase]));
+    const sortedAccords = [...accordsList].sort((a, b) => b.percentage - a.percentage);
 
     try {
       let finalImg = imageUrl.trim();
@@ -288,7 +345,14 @@ export const AdminFragranceEditorModal: React.FC<AdminFragranceEditorModalProps>
         finalImg = await compressImage(finalImg, 600, 600, 0.8);
       }
 
+      const finalName = fragranceName.trim() || fragrance.name;
+      const finalCode = fragranceCode.trim().toUpperCase() || fragrance.code;
+      const finalBrand = fragranceBrand.trim() || fragrance.brand;
+
       await saveAdminFragranceUpdate(fragrance.code, {
+        name: finalName,
+        code: finalCode,
+        brand: finalBrand,
         image: finalImg || undefined,
         pyramid: {
           top: parsedTop,
@@ -300,11 +364,14 @@ export const AdminFragranceEditorModal: React.FC<AdminFragranceEditorModalProps>
         sensation: sensation.trim() || undefined,
         environment,
         themeMode,
-        mainAccords: accordsList
+        mainAccords: sortedAccords
       });
 
       const updatedFragrance: CatalogFragrance = {
         ...fragrance,
+        name: finalName,
+        code: finalCode,
+        brand: finalBrand,
         image: finalImg || fragrance.image,
         pyramid: {
           top: parsedTop,
@@ -316,7 +383,7 @@ export const AdminFragranceEditorModal: React.FC<AdminFragranceEditorModalProps>
         sensation: sensation.trim() || fragrance.sensation,
         environment,
         themeMode,
-        mainAccords: accordsList
+        mainAccords: sortedAccords
       };
 
       setSaveSuccess(true);
@@ -342,6 +409,9 @@ export const AdminFragranceEditorModal: React.FC<AdminFragranceEditorModalProps>
       setIsProcessing(true);
       try {
         await resetAdminFragranceUpdate(fragrance.code);
+        setFragranceName(fragrance.name);
+        setFragranceCode(fragrance.code);
+        setFragranceBrand(fragrance.brand);
         setImageUrl('');
         setTopNotes(fragrance.pyramid.top.join(', '));
         setHeartNotes(fragrance.pyramid.heart.join(', '));
@@ -355,15 +425,15 @@ export const AdminFragranceEditorModal: React.FC<AdminFragranceEditorModalProps>
           fragrance.allNotes,
           fragrance.sweetness,
           fragrance.intensity
-        ));
+        ).sort((a, b) => b.percentage - a.percentage));
         setSaveSuccess(true);
         if (timerRef.current) clearTimeout(timerRef.current);
         timerRef.current = setTimeout(() => {
           setSaveSuccess(false);
           onClose();
-        }, 900);
-      } catch {
-        // Safe reset
+        }, 1000);
+      } catch (err: any) {
+        setSaveError('No se pudo restablecer la fragancia.');
       } finally {
         setIsProcessing(false);
       }
@@ -429,6 +499,67 @@ export const AdminFragranceEditorModal: React.FC<AdminFragranceEditorModalProps>
         )}
 
         <div className="space-y-6 pt-4">
+          {/* DATOS DE IDENTIFICACIÓN: NOMBRE, CÓDIGO Y CASA DEL PERFUME */}
+          <div className="p-5 rounded-2xl bg-[#141414] border border-[#C9A84C]/40 space-y-4 shadow-lg">
+            <div className="flex items-center justify-between">
+              <label className="text-xs uppercase font-bold tracking-wider text-[#F0D080] flex items-center gap-2">
+                <Edit3 className="w-4 h-4" />
+                <span>Identificación del Perfume (Nombre, Código y Casa Creadora)</span>
+              </label>
+              <span className="text-[11px] text-stone-400">
+                Personaliza la información oficial
+              </span>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-12 gap-3">
+              {/* Código */}
+              <div className="sm:col-span-3 space-y-1">
+                <label className="block text-[11px] font-semibold text-stone-300">
+                  Código Fraganza:
+                </label>
+                <input
+                  type="text"
+                  value={fragranceCode}
+                  onChange={(e) => setFragranceCode(e.target.value.toUpperCase())}
+                  placeholder="Ej: C-069"
+                  className="w-full bg-black/80 border border-stone-800 rounded-xl px-3 py-2 text-xs font-mono font-bold text-[#F0D080] focus:outline-none focus:border-[#C9A84C]"
+                />
+              </div>
+
+              {/* Nombre de la fragancia */}
+              <div className="sm:col-span-5 space-y-1">
+                <label className="block text-[11px] font-semibold text-stone-300">
+                  Nombre de la Fragancia:
+                </label>
+                <input
+                  type="text"
+                  value={fragranceName}
+                  onChange={(e) => setFragranceName(e.target.value)}
+                  placeholder="Ej: Nitro Intense"
+                  className="w-full bg-black/80 border border-stone-800 rounded-xl px-3 py-2 text-xs text-stone-100 font-semibold focus:outline-none focus:border-[#C9A84C]"
+                />
+              </div>
+
+              {/* Casa del perfume / Diseñador original */}
+              <div className="sm:col-span-4 space-y-1">
+                <label className="block text-[11px] font-semibold text-[#F0D080]">
+                  Casa / Marca Original:
+                </label>
+                <input
+                  type="text"
+                  value={fragranceBrand}
+                  onChange={(e) => setFragranceBrand(e.target.value)}
+                  placeholder="Ej: Dumont, Dior, Creed..."
+                  className="w-full bg-black/80 border border-stone-800 rounded-xl px-3 py-2 text-xs text-stone-100 font-bold focus:outline-none focus:border-[#C9A84C]"
+                />
+              </div>
+            </div>
+
+            <p className="text-[11px] text-stone-400 leading-relaxed bg-black/40 p-2.5 rounded-xl border border-stone-800/80">
+              💡 <strong className="text-stone-300">Nota:</strong> Fraganza comercializa las fragancias, pero aquí puedes especificar la <strong className="text-[#F0D080]">casa perfumera creadora original</strong> (por ejemplo: <em>Nitro Intense es de Dumont</em>, <em>Aventus es de Creed</em>, <em>Sauvage es de Dior</em>).
+            </p>
+          </div>
+
           {/* FOTO REAL DEL PERFUME */}
           <div className="p-5 rounded-2xl bg-[#141414] border border-stone-800 space-y-4">
             <div className="flex items-center justify-between">
@@ -442,20 +573,24 @@ export const AdminFragranceEditorModal: React.FC<AdminFragranceEditorModalProps>
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-12 gap-4 items-center">
-              {/* Image Preview */}
-              <div className="sm:col-span-4 relative aspect-square rounded-2xl overflow-hidden bg-black border border-[#C9A84C]/40 p-2 flex items-center justify-center shadow-lg">
+              {/* Image Preview with Pure White mode blend */}
+              <div className={`sm:col-span-4 relative aspect-square rounded-2xl overflow-hidden border p-2 flex items-center justify-center shadow-lg transition-colors ${
+                themeMode === 'white' ? 'bg-white border-stone-300' : 'bg-black border-[#C9A84C]/40'
+              }`}>
                 <img
                   src={previewPhoto}
-                  alt={fragrance.name}
-                  className="w-full h-full object-contain"
+                  alt={fragranceName || fragrance.name}
+                  className={`w-full h-full object-contain ${themeMode === 'white' ? 'mix-blend-multiply' : ''}`}
                 />
                 {isProcessing && (
                   <div className="absolute inset-0 bg-black/60 flex items-center justify-center">
                     <Loader2 className="w-6 h-6 text-[#F0D080] animate-spin" />
                   </div>
                 )}
-                <span className="absolute bottom-1.5 left-1.5 right-1.5 bg-black/80 backdrop-blur-sm text-[9px] text-stone-300 py-0.5 text-center rounded font-mono">
-                  Vista Previa Real
+                <span className={`absolute bottom-1.5 left-1.5 right-1.5 text-[9px] py-0.5 text-center rounded font-mono ${
+                  themeMode === 'white' ? 'bg-stone-100/90 text-stone-800 border border-stone-200' : 'bg-black/80 backdrop-blur-sm text-stone-300'
+                }`}>
+                  {themeMode === 'white' ? 'Vista en Fondo Blanco Puro' : 'Vista en Fondo Negro'}
                 </span>
               </div>
 
@@ -706,52 +841,243 @@ export const AdminFragranceEditorModal: React.FC<AdminFragranceEditorModalProps>
             <div className="flex items-center justify-between">
               <label className="text-xs uppercase font-bold tracking-wider text-[#F0D080] flex items-center gap-2">
                 <Layers className="w-4 h-4" />
-                <span>Colocar Notas Olfativas (Pirámide)</span>
+                <span>Constructor de Pirámide Olfativa (Selecciona o Escribe)</span>
               </label>
-              <span className="text-[11px] text-stone-400 font-mono">
-                Separadas por comas (,)
+              <span className="text-[11px] text-stone-400">
+                Añade notas con un clic o edita el texto
               </span>
             </div>
 
+            {/* Note Picker Selector Toolbar */}
+            <div className="p-3.5 rounded-xl bg-black/60 border border-stone-800 space-y-3">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                <span className="text-[11px] text-stone-300 font-semibold">
+                  1. Elige a qué nivel de la pirámide deseas agregar notas:
+                </span>
+                <div className="flex rounded-lg bg-stone-900 p-1 border border-stone-800 text-xs font-bold">
+                  <button
+                    type="button"
+                    onClick={() => setSelectedPyramidTarget('top')}
+                    className={`px-3 py-1 rounded transition ${
+                      selectedPyramidTarget === 'top'
+                        ? 'bg-[#C9A84C] text-stone-950 shadow'
+                        : 'text-stone-400 hover:text-stone-200'
+                    }`}
+                  >
+                    Salida
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setSelectedPyramidTarget('heart')}
+                    className={`px-3 py-1 rounded transition ${
+                      selectedPyramidTarget === 'heart'
+                        ? 'bg-rose-500 text-white shadow'
+                        : 'text-stone-400 hover:text-stone-200'
+                    }`}
+                  >
+                    Corazón
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setSelectedPyramidTarget('base')}
+                    className={`px-3 py-1 rounded transition ${
+                      selectedPyramidTarget === 'base'
+                        ? 'bg-amber-600 text-white shadow'
+                        : 'text-stone-400 hover:text-stone-200'
+                    }`}
+                  >
+                    Fondo
+                  </button>
+                </div>
+              </div>
+
+              {/* Search & Click Notes */}
+              <div className="space-y-2">
+                <div className="relative">
+                  <Search className="w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-stone-500" />
+                  <input
+                    type="text"
+                    value={notePickerSearch}
+                    onChange={(e) => setNotePickerSearch(e.target.value)}
+                    placeholder="Buscar nota olfativa (ej: Vainilla, Bergamota, Sándalo, Rosa...)"
+                    className="w-full bg-stone-950 border border-stone-800 rounded-xl pl-9 pr-3 py-1.5 text-xs text-stone-100 placeholder-stone-600 focus:outline-none focus:border-[#C9A84C]"
+                  />
+                  {notePickerSearch && (
+                    <button
+                      type="button"
+                      onClick={() => setNotePickerSearch('')}
+                      className="absolute right-2.5 top-1/2 -translate-y-1/2 text-stone-500 hover:text-stone-300"
+                    >
+                      <X className="w-3 h-3" />
+                    </button>
+                  )}
+                </div>
+
+                <div className="flex flex-wrap gap-1.5 max-h-28 overflow-y-auto p-2 bg-stone-950/80 rounded-xl border border-stone-800/80">
+                  {ALL_UNIQUE_NOTES.filter((n) =>
+                    !notePickerSearch.trim() || n.toLowerCase().includes(notePickerSearch.toLowerCase().trim())
+                  )
+                    .slice(0, 40)
+                    .map((n) => {
+                      const isCurrentInTop = cleanArray(topNotes).some((x) => x.toLowerCase() === n.toLowerCase());
+                      const isCurrentInHeart = cleanArray(heartNotes).some((x) => x.toLowerCase() === n.toLowerCase());
+                      const isCurrentInBase = cleanArray(baseNotes).some((x) => x.toLowerCase() === n.toLowerCase());
+                      const isAlreadyInTarget =
+                        selectedPyramidTarget === 'top'
+                          ? isCurrentInTop
+                          : selectedPyramidTarget === 'heart'
+                          ? isCurrentInHeart
+                          : isCurrentInBase;
+
+                      return (
+                        <button
+                          key={n}
+                          type="button"
+                          onClick={() => addNoteToPyramid(n, selectedPyramidTarget)}
+                          className={`px-2.5 py-1 rounded-lg text-[11px] font-semibold transition flex items-center gap-1 border ${
+                            isAlreadyInTarget
+                              ? 'bg-stone-800/60 border-stone-700 text-stone-400 opacity-60'
+                              : 'bg-stone-900 border-stone-700 hover:border-[#C9A84C] text-stone-200 hover:text-[#F0D080]'
+                          }`}
+                        >
+                          <Plus className="w-3 h-3 text-[#C9A84C]" />
+                          <span>{n}</span>
+                        </button>
+                      );
+                    })}
+                </div>
+              </div>
+            </div>
+
             {/* Salida */}
-            <div className="space-y-1.5">
-              <label className="block text-xs font-semibold text-[#F0D080]">
-                Notas de Salida (Primeros 15 min):
-              </label>
+            <div className="space-y-2 p-3 rounded-xl bg-black/40 border border-stone-800/80">
+              <div className="flex items-center justify-between">
+                <label className="text-xs font-bold text-[#F0D080] flex items-center gap-1.5">
+                  <span>🍃 Notas de Salida (Primeros 15 min):</span>
+                </label>
+                <span className="text-[10px] text-stone-500 font-mono">
+                  {cleanArray(topNotes).length} notas
+                </span>
+              </div>
+
+              {/* Chips */}
+              <div className="flex flex-wrap gap-1.5 min-h-6">
+                {cleanArray(topNotes).length === 0 ? (
+                  <span className="text-[11px] text-stone-600 italic">Sin notas de salida asignadas</span>
+                ) : (
+                  cleanArray(topNotes).map((n) => (
+                    <span
+                      key={n}
+                      className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-lg text-xs font-semibold bg-[#1e1708] text-[#F0D080] border border-[#C9A84C]/40 shadow-sm"
+                    >
+                      <span>{n}</span>
+                      <button
+                        type="button"
+                        onClick={() => removeNoteFromPyramid(n, 'top')}
+                        className="hover:text-rose-400 p-0.5 transition"
+                        title="Quitar nota"
+                      >
+                        <X className="w-3 h-3" />
+                      </button>
+                    </span>
+                  ))
+                )}
+              </div>
+
               <input
                 type="text"
                 value={topNotes}
                 onChange={(e) => setTopNotes(e.target.value)}
                 placeholder="Ej: Bergamota, Mandarina, Pimienta Rosa"
-                className="w-full bg-black/70 border border-stone-800 rounded-xl px-3.5 py-2.5 text-xs text-stone-100 focus:outline-none focus:border-[#C9A84C]"
+                className="w-full bg-black/70 border border-stone-800 rounded-xl px-3 py-1.5 text-xs text-stone-100 focus:outline-none focus:border-[#C9A84C]"
               />
             </div>
 
             {/* Corazón */}
-            <div className="space-y-1.5">
-              <label className="block text-xs font-semibold text-rose-300">
-                Notas de Corazón (2 a 4 horas):
-              </label>
+            <div className="space-y-2 p-3 rounded-xl bg-black/40 border border-stone-800/80">
+              <div className="flex items-center justify-between">
+                <label className="text-xs font-bold text-rose-300 flex items-center gap-1.5">
+                  <span>🌸 Notas de Corazón (2 a 4 horas):</span>
+                </label>
+                <span className="text-[10px] text-stone-500 font-mono">
+                  {cleanArray(heartNotes).length} notas
+                </span>
+              </div>
+
+              {/* Chips */}
+              <div className="flex flex-wrap gap-1.5 min-h-6">
+                {cleanArray(heartNotes).length === 0 ? (
+                  <span className="text-[11px] text-stone-600 italic">Sin notas de corazón asignadas</span>
+                ) : (
+                  cleanArray(heartNotes).map((n) => (
+                    <span
+                      key={n}
+                      className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-lg text-xs font-semibold bg-rose-950/60 text-rose-200 border border-rose-800/50 shadow-sm"
+                    >
+                      <span>{n}</span>
+                      <button
+                        type="button"
+                        onClick={() => removeNoteFromPyramid(n, 'heart')}
+                        className="hover:text-rose-400 p-0.5 transition"
+                        title="Quitar nota"
+                      >
+                        <X className="w-3 h-3" />
+                      </button>
+                    </span>
+                  ))
+                )}
+              </div>
+
               <input
                 type="text"
                 value={heartNotes}
                 onChange={(e) => setHeartNotes(e.target.value)}
                 placeholder="Ej: Rosa de Damasco, Jazmín Sambac, Lavanda"
-                className="w-full bg-black/70 border border-stone-800 rounded-xl px-3.5 py-2.5 text-xs text-stone-100 focus:outline-none focus:border-rose-400"
+                className="w-full bg-black/70 border border-stone-800 rounded-xl px-3 py-1.5 text-xs text-stone-100 focus:outline-none focus:border-rose-400"
               />
             </div>
 
             {/* Fondo */}
-            <div className="space-y-1.5">
-              <label className="block text-xs font-semibold text-amber-300">
-                Notas de Fondo / Base (Fijación prolongada):
-              </label>
+            <div className="space-y-2 p-3 rounded-xl bg-black/40 border border-stone-800/80">
+              <div className="flex items-center justify-between">
+                <label className="text-xs font-bold text-amber-300 flex items-center gap-1.5">
+                  <span>🪵 Notas de Fondo / Base (Fijación prolongada):</span>
+                </label>
+                <span className="text-[10px] text-stone-500 font-mono">
+                  {cleanArray(baseNotes).length} notas
+                </span>
+              </div>
+
+              {/* Chips */}
+              <div className="flex flex-wrap gap-1.5 min-h-6">
+                {cleanArray(baseNotes).length === 0 ? (
+                  <span className="text-[11px] text-stone-600 italic">Sin notas de fondo asignadas</span>
+                ) : (
+                  cleanArray(baseNotes).map((n) => (
+                    <span
+                      key={n}
+                      className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-lg text-xs font-semibold bg-amber-950/60 text-amber-200 border border-amber-800/50 shadow-sm"
+                    >
+                      <span>{n}</span>
+                      <button
+                        type="button"
+                        onClick={() => removeNoteFromPyramid(n, 'base')}
+                        className="hover:text-rose-400 p-0.5 transition"
+                        title="Quitar nota"
+                      >
+                        <X className="w-3 h-3" />
+                      </button>
+                    </span>
+                  ))
+                )}
+              </div>
+
               <input
                 type="text"
                 value={baseNotes}
                 onChange={(e) => setBaseNotes(e.target.value)}
                 placeholder="Ej: Vainilla, Ámbar, Sándalo, Almizcle"
-                className="w-full bg-black/70 border border-stone-800 rounded-xl px-3.5 py-2.5 text-xs text-stone-100 focus:outline-none focus:border-amber-400"
+                className="w-full bg-black/70 border border-stone-800 rounded-xl px-3 py-1.5 text-xs text-stone-100 focus:outline-none focus:border-amber-400"
               />
             </div>
           </div>

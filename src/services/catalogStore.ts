@@ -339,3 +339,130 @@ export async function saveCustomNotePhoto(noteName: string, rawPhotoUrl: string)
 export async function resetCustomNotePhoto(noteName: string): Promise<void> {
   await resetCustomNoteDetail(noteName);
 }
+
+// --- GLOBAL NOTE MANAGEMENT FOR ADMIN (DELETE DUPLICATES & MERGE TYPOS) ---
+
+/**
+ * Remove a note completely from all fragrances in the customized catalog
+ */
+export async function deleteNoteGlobally(noteName: string): Promise<number> {
+  const target = noteName.trim().toLowerCase();
+  if (!target) return 0;
+
+  let affectedCount = 0;
+  const currentCatalog = getCustomizedCatalog();
+
+  for (const fragrance of currentCatalog) {
+    const hasInTop = (fragrance.pyramid.top || []).some((n) => n.trim().toLowerCase() === target);
+    const hasInHeart = (fragrance.pyramid.heart || []).some((n) => n.trim().toLowerCase() === target);
+    const hasInBase = (fragrance.pyramid.base || []).some((n) => n.trim().toLowerCase() === target);
+    const hasInAll = (fragrance.allNotes || []).some((n) => n.trim().toLowerCase() === target);
+
+    if (hasInTop || hasInHeart || hasInBase || hasInAll) {
+      affectedCount++;
+      const updatedTop = (fragrance.pyramid.top || []).filter((n) => n.trim().toLowerCase() !== target);
+      const updatedHeart = (fragrance.pyramid.heart || []).filter((n) => n.trim().toLowerCase() !== target);
+      const updatedBase = (fragrance.pyramid.base || []).filter((n) => n.trim().toLowerCase() !== target);
+      const updatedAll = Array.from(new Set([...updatedTop, ...updatedHeart, ...updatedBase]));
+
+      await saveAdminFragranceUpdate(fragrance.code, {
+        pyramid: {
+          top: updatedTop,
+          heart: updatedHeart,
+          base: updatedBase
+        },
+        allNotes: updatedAll
+      });
+    }
+  }
+
+  // Also remove from custom notes storage if present
+  await resetCustomNoteDetail(noteName);
+
+  window.dispatchEvent(new CustomEvent('fraganza_catalog_updated', { detail: { action: 'delete_note', noteName } }));
+  window.dispatchEvent(new CustomEvent('fraganza_notes_updated', { detail: { action: 'delete_note', noteName } }));
+
+  return affectedCount;
+}
+
+/**
+ * Merge/replace a duplicate or mistyped note (e.g. 'Vainilla,') with the canonical note ('Vainilla')
+ */
+export async function mergeNotesGlobally(fromNote: string, toNote: string): Promise<number> {
+  const source = fromNote.trim().toLowerCase();
+  const target = toNote.trim();
+  if (!source || !target || source === target.toLowerCase()) return 0;
+
+  let affectedCount = 0;
+  const currentCatalog = getCustomizedCatalog();
+
+  for (const fragrance of currentCatalog) {
+    const replaceInArray = (arr: string[]): string[] => {
+      let modified = false;
+      const res: string[] = [];
+      for (const n of arr) {
+        if (n.trim().toLowerCase() === source) {
+          modified = true;
+          if (!res.includes(target)) res.push(target);
+        } else {
+          if (!res.includes(n)) res.push(n);
+        }
+      }
+      return modified ? res : arr;
+    };
+
+    const hasInTop = (fragrance.pyramid.top || []).some((n) => n.trim().toLowerCase() === source);
+    const hasInHeart = (fragrance.pyramid.heart || []).some((n) => n.trim().toLowerCase() === source);
+    const hasInBase = (fragrance.pyramid.base || []).some((n) => n.trim().toLowerCase() === source);
+
+    if (hasInTop || hasInHeart || hasInBase) {
+      affectedCount++;
+      const updatedTop = replaceInArray(fragrance.pyramid.top || []);
+      const updatedHeart = replaceInArray(fragrance.pyramid.heart || []);
+      const updatedBase = replaceInArray(fragrance.pyramid.base || []);
+      const updatedAll = Array.from(new Set([...updatedTop, ...updatedHeart, ...updatedBase]));
+
+      await saveAdminFragranceUpdate(fragrance.code, {
+        pyramid: {
+          top: updatedTop,
+          heart: updatedHeart,
+          base: updatedBase
+        },
+        allNotes: updatedAll
+      });
+    }
+  }
+
+  // Copy photo/details to target if target didn't have one
+  const sourceDetail = getStoredCustomNote(fromNote);
+  if (sourceDetail && !getStoredCustomNote(target)) {
+    await saveCustomNoteDetail({
+      ...sourceDetail,
+      originalName: target,
+      displayName: target
+    });
+  }
+  await resetCustomNoteDetail(fromNote);
+
+  window.dispatchEvent(new CustomEvent('fraganza_catalog_updated', { detail: { action: 'merge_note', fromNote, toNote } }));
+  window.dispatchEvent(new CustomEvent('fraganza_notes_updated', { detail: { action: 'merge_note', fromNote, toNote } }));
+
+  return affectedCount;
+}
+
+/**
+ * Update the olfactory category/family of a note globally
+ */
+export async function updateNoteCategoryGlobally(noteName: string, newCategory: string): Promise<void> {
+  const existing = getStoredCustomNote(noteName);
+  await saveCustomNoteDetail({
+    originalName: noteName,
+    displayName: existing?.displayName || noteName,
+    botanicalName: existing?.botanicalName,
+    category: newCategory,
+    description: existing?.description || `Nota olfativa oficial: ${noteName} (${newCategory})`,
+    photoUrl: existing?.photoUrl || ''
+  });
+
+  window.dispatchEvent(new CustomEvent('fraganza_notes_updated', { detail: { action: 'update_category', noteName, newCategory } }));
+}

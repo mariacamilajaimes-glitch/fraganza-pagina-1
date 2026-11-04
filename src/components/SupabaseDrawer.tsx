@@ -37,8 +37,11 @@ export const SupabaseDrawer: React.FC<SupabaseDrawerProps> = ({ isOpen, onClose 
   const [activeTab, setActiveTab] = useState<'edit_existing' | 'tutorial' | 'add_colonia' | 'schema' | 'architecture'>('edit_existing');
   const config = getSupabaseConfig();
 
-  // State for Editing Existing Perfume (Photo & Notes)
+  // State for Editing Existing Perfume (Identification, Photo & Notes)
   const [selectedFragranceCode, setSelectedFragranceCode] = useState<string>('D-001');
+  const [editName, setEditName] = useState<string>('');
+  const [editCode, setEditCode] = useState<string>('');
+  const [editBrand, setEditBrand] = useState<string>('');
   const [editImageUrl, setEditImageUrl] = useState<string>('');
   const [editTopNotes, setEditTopNotes] = useState<string>('');
   const [editHeartNotes, setEditHeartNotes] = useState<string>('');
@@ -66,6 +69,9 @@ export const SupabaseDrawer: React.FC<SupabaseDrawerProps> = ({ isOpen, onClose 
   useEffect(() => {
     const f = getCustomizedFragrance(selectedFragranceCode);
     if (f) {
+      setEditName(f.name || '');
+      setEditCode(f.code || selectedFragranceCode);
+      setEditBrand(f.brand || '');
       setEditImageUrl(f.image || '');
       setEditTopNotes((f.pyramid.top || []).join(', '));
       setEditHeartNotes((f.pyramid.heart || []).join(', '));
@@ -98,7 +104,7 @@ export const SupabaseDrawer: React.FC<SupabaseDrawerProps> = ({ isOpen, onClose 
   const handleDownloadJSON = () => {
     handleDownloadFile(
       'fraganza_catalog_207_perfumes.json',
-      JSON.stringify(CATALOG, null, 2),
+      JSON.stringify(getCustomizedCatalog(), null, 2),
       'application/json'
     );
   };
@@ -207,6 +213,9 @@ export const SupabaseDrawer: React.FC<SupabaseDrawerProps> = ({ isOpen, onClose 
     const all = Array.from(new Set([...top, ...heart, ...base]));
 
     saveAdminFragranceUpdate(selectedFragranceCode, {
+      name: editName.trim() || undefined,
+      code: editCode.trim() || undefined,
+      brand: editBrand.trim() || undefined,
       image: editImageUrl.trim() || undefined,
       pyramid: { top, heart, base },
       allNotes: all,
@@ -216,6 +225,9 @@ export const SupabaseDrawer: React.FC<SupabaseDrawerProps> = ({ isOpen, onClose 
     if (config.isConfigured) {
       try {
         const payload: any = {
+          name: editName.trim() || undefined,
+          code: editCode.trim() || undefined,
+          brand: editBrand.trim() || undefined,
           top_notes: top,
           heart_notes: heart,
           base_notes: base,
@@ -239,12 +251,15 @@ export const SupabaseDrawer: React.FC<SupabaseDrawerProps> = ({ isOpen, onClose 
       }
     }
 
-    setEditStatus(`¡Foto y notas del perfume ${selectedFragranceCode} guardadas con éxito en toda la web!`);
+    setEditStatus(`¡Nombre, casa, código y notas del perfume ${editName || selectedFragranceCode} guardados con éxito en la subbase y en toda la web!`);
     setTimeout(() => setEditStatus(null), 3500);
   };
 
   const generatedSQLUpdate = `UPDATE public.fragrances
 SET 
+  name = '${editName.replace(/'/g, "''")}',
+  brand = '${editBrand.replace(/'/g, "''")}',
+  code = '${editCode.replace(/'/g, "''")}',
   image_url = '${editImageUrl || (currentEditFragrance ? getPerfumeBottlePhoto(currentEditFragrance.name, currentEditFragrance.gender, currentEditFragrance.image, currentEditFragrance.code) : '')}',
   top_notes = '{${editTopNotes.split(',').map((s) => `"${s.trim()}"`).filter(Boolean).join(',')}}'::text[],
   heart_notes = '{${editHeartNotes.split(',').map((s) => `"${s.trim()}"`).filter(Boolean).join(',')}}'::text[],
@@ -405,9 +420,60 @@ WHERE code = '${selectedFragranceCode}';`;
 
             {currentEditFragrance && (
               <div className="p-5 rounded-2xl bg-[#141414] border border-stone-800 space-y-5">
+                {/* Perfume Identification (Name, Original House/Brand, Code) */}
+                <div className="p-4 rounded-xl bg-stone-900/60 border border-stone-800 space-y-3">
+                  <div className="flex items-center gap-2">
+                    <Edit3 className="w-4 h-4 text-[#F0D080]" />
+                    <span className="text-xs font-bold text-stone-200">
+                      Identificación Oficial (Nombre, Casa Perfumera y Código)
+                    </span>
+                  </div>
+                  <p className="text-[11px] text-stone-400">
+                    Fraganza es la tienda que los distribuye. Aquí puedes cambiar el nombre real del perfume (ej. <span className="text-stone-300">Nitro Intense</span>), la casa que lo originó (ej. <span className="text-[#F0D080]">Dumont</span>, <span className="text-[#F0D080]">Dior</span>, <span className="text-[#F0D080]">Creed</span>) y el código.
+                  </p>
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-1">
+                    <div>
+                      <label className="text-[11px] text-[#F0D080] font-semibold block mb-1">
+                        Nombre de la Fragancia:
+                      </label>
+                      <input
+                        type="text"
+                        value={editName}
+                        onChange={(e) => setEditName(e.target.value)}
+                        placeholder="Ej. Nitro Intense"
+                        className="w-full bg-black/80 border border-stone-700 rounded-xl px-3 py-2 text-xs text-stone-100 focus:outline-none focus:border-[#C9A84C]"
+                      />
+                    </div>
+                    <div>
+                      <label className="text-[11px] text-[#F0D080] font-semibold block mb-1">
+                        Casa Perfumera / Creador:
+                      </label>
+                      <input
+                        type="text"
+                        value={editBrand}
+                        onChange={(e) => setEditBrand(e.target.value)}
+                        placeholder="Ej. Dumont, Carolina Herrera, Creed"
+                        className="w-full bg-black/80 border border-stone-700 rounded-xl px-3 py-2 text-xs text-stone-100 focus:outline-none focus:border-[#C9A84C]"
+                      />
+                    </div>
+                    <div>
+                      <label className="text-[11px] text-[#F0D080] font-semibold block mb-1">
+                        Código Fraganza:
+                      </label>
+                      <input
+                        type="text"
+                        value={editCode}
+                        onChange={(e) => setEditCode(e.target.value)}
+                        placeholder="Ej. C-015, D-008"
+                        className="w-full bg-black/80 border border-stone-700 rounded-xl px-3 py-2 text-xs font-mono font-bold text-stone-100 focus:outline-none focus:border-[#C9A84C]"
+                      />
+                    </div>
+                  </div>
+                </div>
+
                 {/* Photo Upload & Preview */}
                 <div className="grid grid-cols-1 sm:grid-cols-12 gap-4 items-center">
-                  <div className="sm:col-span-4 relative aspect-square rounded-2xl overflow-hidden bg-black border border-[#C9A84C]/40 p-2 flex items-center justify-center">
+                  <div className="sm:col-span-4 relative aspect-square rounded-2xl overflow-hidden bg-white dark:bg-black border border-[#C9A84C]/40 p-2 flex items-center justify-center">
                     <img
                       src={
                         editImageUrl ||
@@ -419,7 +485,7 @@ WHERE code = '${selectedFragranceCode}';`;
                         )
                       }
                       alt={currentEditFragrance.name}
-                      className="w-full h-full object-contain"
+                      className="w-full h-full object-contain mix-blend-multiply dark:mix-blend-normal"
                     />
                     <span className="absolute bottom-1.5 left-1.5 right-1.5 bg-black/80 text-[9px] text-stone-300 py-0.5 text-center rounded font-mono">
                       Foto Actual
