@@ -10,9 +10,6 @@ export interface AccordItem {
 }
 
 export interface FragranceOverride {
-  name?: string;
-  code?: string;
-  brand?: string;
   image?: string;
   pyramid?: OlfactoryPyramid;
   allNotes?: string[];
@@ -168,9 +165,6 @@ export function getCustomizedCatalog(): CatalogFragrance[] {
 
     return {
       ...fragrance,
-      name: override.name || fragrance.name,
-      code: override.code || fragrance.code,
-      brand: override.brand || fragrance.brand,
       image: override.image || fragrance.image,
       pyramid: updatedPyramid,
       allNotes: computedAllNotes,
@@ -180,7 +174,7 @@ export function getCustomizedCatalog(): CatalogFragrance[] {
       intensity: (override.intensity as any) || fragrance.intensity,
       environment: (override.environment as any) || fragrance.environment,
       occasion: override.occasion || fragrance.occasion,
-      mainAccords: override.mainAccords ? [...override.mainAccords].sort((a, b) => b.percentage - a.percentage) : undefined,
+      mainAccords: override.mainAccords,
       themeMode: override.themeMode,
     };
   });
@@ -221,9 +215,6 @@ export async function saveAdminFragranceUpdate(
     };
 
     inMemoryOverrides[code] = updatedEntry;
-    if (updates.code && updates.code !== code) {
-      inMemoryOverrides[updates.code] = updatedEntry;
-    }
 
     // Persist to IndexedDB (virtually unlimited capacity)
     await idbSet(STORAGE_KEY, inMemoryOverrides);
