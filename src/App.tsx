@@ -6,6 +6,7 @@ import { AdvancedSearch } from './components/AdvancedSearch';
 import { FamilyExplorer } from './components/FamilyExplorer';
 import { FragranceModal } from './components/FragranceModal';
 import { OfficialCatalogView } from './components/OfficialCatalogView';
+import { FragranceComparator } from './components/FragranceComparator';
 import { SupabaseDrawer } from './components/SupabaseDrawer';
 import { AdminAuthModal } from './components/AdminAuthModal';
 import { getPerfumeBottlePhoto } from './data/fragranceVisuals';
@@ -23,11 +24,12 @@ import {
   Star,
   Lock,
   ShieldCheck,
-  ShieldAlert
+  ShieldAlert,
+  Scale
 } from 'lucide-react';
 
 export default function App() {
-  const [activeTab, setActiveTab] = useState<'quiz' | 'search' | 'families' | 'catalog' | 'favorites'>('quiz');
+  const [activeTab, setActiveTab] = useState<'quiz' | 'search' | 'families' | 'catalog' | 'favorites' | 'compare'>('quiz');
   const [selectedFragrance, setSelectedFragrance] = useState<CatalogFragrance | null>(null);
   const [isSupabaseDrawerOpen, setIsSupabaseDrawerOpen] = useState<boolean>(false);
   const [isAdminModalOpen, setIsAdminModalOpen] = useState<boolean>(false);
@@ -37,6 +39,19 @@ export default function App() {
     } catch {
       return false;
     }
+  });
+
+  // Comparison state with persistent storage
+  const [compareList, setCompareList] = useState<CatalogFragrance[]>(() => {
+    try {
+      const saved = localStorage.getItem('fraganza_compare_ids');
+      if (saved) {
+        const ids: string[] = JSON.parse(saved);
+        const all = getCustomizedCatalog();
+        return ids.map((id) => all.find((c) => c.id === id)).filter((f): f is CatalogFragrance => Boolean(f));
+      }
+    } catch {}
+    return [];
   });
 
   // Favorites state persisted in localStorage
@@ -57,6 +72,39 @@ export default function App() {
       localStorage.setItem('fraganza_fav_codes', JSON.stringify(favorites));
     } catch {}
   }, [favorites]);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem('fraganza_compare_ids', JSON.stringify(compareList.map((c) => c.id)));
+    } catch {}
+  }, [compareList]);
+
+  const handleToggleCompare = (fragrance: CatalogFragrance) => {
+    setCompareList((prev) => {
+      const exists = prev.some((c) => c.id === fragrance.id);
+      if (exists) {
+        showToast(`"${fragrance.name}" eliminada de la comparación`);
+        return prev.filter((c) => c.id !== fragrance.id);
+      } else {
+        if (prev.length >= 2) {
+          showToast(`"${fragrance.name}" agregada a la comparación (reemplazando anterior)`);
+          return [prev[1], fragrance];
+        } else {
+          showToast(`"${fragrance.name}" agregada al comparador`);
+          return [...prev, fragrance];
+        }
+      }
+    });
+  };
+
+  const handleRemoveFromCompare = (id: string) => {
+    setCompareList((prev) => prev.filter((c) => c.id !== id));
+  };
+
+  const handleClearCompare = () => {
+    setCompareList([]);
+    showToast('Comparación vaciada');
+  };
 
   // Secret admin shortcut (Ctrl + Shift + A or Alt + A)
   useEffect(() => {
@@ -224,6 +272,25 @@ export default function App() {
               </button>
 
               <button
+                onClick={() => setActiveTab('compare')}
+                className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-semibold tracking-wide transition-all relative ${
+                  activeTab === 'compare'
+                    ? 'bg-gradient-to-r from-[#C9A84C] to-[#F0D080] text-stone-950 font-bold shadow-lg shadow-[#C9A84C]/25'
+                    : 'text-stone-300 hover:text-stone-100 hover:bg-[#141414]'
+                }`}
+              >
+                <Scale className="w-3.5 h-3.5" />
+                Comparar
+                {compareList.length > 0 && (
+                  <span className={`px-1.5 py-0.2 rounded-full text-[10px] font-black ${
+                    activeTab === 'compare' ? 'bg-stone-950 text-[#F0D080]' : 'bg-[#C9A84C] text-stone-950'
+                  }`}>
+                    {compareList.length}
+                  </span>
+                )}
+              </button>
+
+              <button
                 onClick={() => setActiveTab('favorites')}
                 className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-semibold tracking-wide transition-all relative ${
                   activeTab === 'favorites'
@@ -296,6 +363,20 @@ export default function App() {
             <span>Catálogo</span>
           </button>
           <button
+            onClick={() => setActiveTab('compare')}
+            className={`flex flex-col items-center gap-1 py-1 px-2 rounded-lg shrink-0 relative ${
+              activeTab === 'compare' ? 'text-[#F0D080] font-bold' : 'text-stone-400'
+            }`}
+          >
+            <Scale className="w-4 h-4" />
+            <span>Comparar</span>
+            {compareList.length > 0 && (
+              <span className="absolute -top-1 right-1 w-4 h-4 rounded-full bg-[#C9A84C] text-stone-950 text-[9px] flex items-center justify-center font-bold">
+                {compareList.length}
+              </span>
+            )}
+          </button>
+          <button
             onClick={() => setActiveTab('favorites')}
             className={`flex flex-col items-center gap-1 py-1 px-2 rounded-lg shrink-0 relative ${
               activeTab === 'favorites' ? 'text-[#F0D080] font-bold' : 'text-stone-400'
@@ -356,6 +437,21 @@ export default function App() {
             onToggleFavorite={handleToggleFavorite}
             isAdmin={isAdmin}
             onRequireAdminAuth={() => setIsAdminModalOpen(true)}
+            onAddToCompare={handleToggleCompare}
+            compareListIds={compareList.map((c) => c.id)}
+          />
+        )}
+
+        {/* Compare Tab (Split-screen side-by-side comparison of 2 perfumes) */}
+        {activeTab === 'compare' && (
+          <FragranceComparator
+            compareList={compareList}
+            onRemoveFromCompare={handleRemoveFromCompare}
+            onClearCompare={handleClearCompare}
+            onSelectFragrance={(perfume) => setSelectedFragrance(perfume)}
+            onAddFragrance={(perfume) => handleToggleCompare(perfume)}
+            favorites={favorites}
+            onToggleFavorite={handleToggleFavorite}
           />
         )}
 
@@ -435,6 +531,54 @@ export default function App() {
         )}
       </main>
 
+      {/* Floating Bottom Comparison Bar (appears when items are selected for comparison and user is not in compare tab) */}
+      {compareList.length > 0 && activeTab !== 'compare' && (
+        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-40 bg-[#141414]/95 backdrop-blur-md border border-[#C9A84C]/60 rounded-2xl p-2.5 sm:px-4 sm:py-3 shadow-2xl shadow-black/80 flex items-center gap-3 animate-in fade-in slide-in-from-bottom-4 duration-300 max-w-[92vw]">
+          <div className="flex items-center gap-2">
+            <div className="flex -space-x-2">
+              {compareList.map((item) => (
+                <div
+                  key={item.id}
+                  className="w-9 h-9 rounded-full bg-black border-2 border-[#C9A84C] overflow-hidden flex items-center justify-center shadow"
+                  title={`${item.brand} - ${item.name}`}
+                >
+                  <img
+                    src={getPerfumeBottlePhoto(item.name, item.gender, item.image, item.code)}
+                    alt={item.name}
+                    className="w-full h-full object-contain p-0.5"
+                  />
+                </div>
+              ))}
+            </div>
+            <div className="hidden sm:block text-left">
+              <p className="text-[11px] font-bold text-stone-100 leading-tight">
+                {compareList.length === 1 ? '1 perfume seleccionado' : '2 perfumes listos'}
+              </p>
+              <p className="text-[10px] text-stone-400 leading-tight">
+                {compareList.map((c) => c.code).join(' vs ')}
+              </p>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-1.5 ml-2">
+            <button
+              onClick={() => setActiveTab('compare')}
+              className="px-3.5 py-1.5 rounded-xl bg-gradient-to-r from-[#C9A84C] to-[#F0D080] text-stone-950 text-xs font-bold flex items-center gap-1.5 shadow hover:brightness-105 transition-all cursor-pointer"
+            >
+              <Scale className="w-3.5 h-3.5" />
+              <span>Comparar {compareList.length === 2 ? 'Ahora' : ''}</span>
+            </button>
+            <button
+              onClick={handleClearCompare}
+              className="p-1.5 rounded-lg text-stone-400 hover:text-stone-200 hover:bg-stone-800/60 transition-colors"
+              title="Vaciar comparación"
+            >
+              ✕
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* Fragrance Modal (with exact same info as winner + always-visible similars) */}
       <FragranceModal
         fragrance={selectedFragrance}
@@ -444,6 +588,8 @@ export default function App() {
         onSelectAnother={(f) => setSelectedFragrance(f)}
         isAdmin={isAdmin}
         onRequireAdminAuth={() => setIsAdminModalOpen(true)}
+        onAddToCompare={handleToggleCompare}
+        isCompared={selectedFragrance ? compareList.some((c) => c.id === selectedFragrance.id) : false}
       />
 
       {/* Supabase Drawer (Protected for Administrator only) */}

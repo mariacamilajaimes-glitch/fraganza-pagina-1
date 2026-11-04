@@ -17,7 +17,8 @@ import {
   Check,
   Edit3,
   Camera,
-  Lock
+  Lock,
+  Scale
 } from 'lucide-react';
 
 interface OfficialCatalogViewProps {
@@ -26,6 +27,8 @@ interface OfficialCatalogViewProps {
   onToggleFavorite: (id: string) => void;
   isAdmin?: boolean;
   onRequireAdminAuth?: () => void;
+  onAddToCompare?: (fragrance: CatalogFragrance) => void;
+  compareListIds?: string[];
 }
 
 export type GenderFilter = 'Todos' | 'Dama' | 'Caballero' | 'Unisex';
@@ -36,6 +39,8 @@ export const OfficialCatalogView: React.FC<OfficialCatalogViewProps> = ({
   onToggleFavorite,
   isAdmin = false,
   onRequireAdminAuth,
+  onAddToCompare,
+  compareListIds = [],
 }) => {
   const [selectedGender, setSelectedGender] = useState<GenderFilter>('Todos');
   const [searchTerm, setSearchTerm] = useState('');
@@ -394,6 +399,24 @@ export const OfficialCatalogView: React.FC<OfficialCatalogViewProps> = ({
                       </button>
                     )}
 
+                    {onAddToCompare && (
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          onAddToCompare(perfume);
+                        }}
+                        className={`p-2 rounded-xl backdrop-blur-md border transition ${
+                          compareListIds.includes(perfume.id)
+                            ? 'bg-[#C9A84C] text-stone-950 border-[#F0D080] font-bold shadow'
+                            : 'bg-black/80 border-stone-700 text-stone-300 hover:text-[#F0D080]'
+                        }`}
+                        title={compareListIds.includes(perfume.id) ? 'Quitar de la comparativa' : 'Añadir a comparativa'}
+                      >
+                        <Scale className="w-4 h-4" />
+                      </button>
+                    )}
+
                     <button
                       type="button"
                       onClick={(e) => {
@@ -529,27 +552,35 @@ export const OfficialCatalogView: React.FC<OfficialCatalogViewProps> = ({
                 <X className="w-4 h-4" />
               </button>
 
-              <div className="w-24 h-24 mx-auto rounded-2xl bg-white p-1.5 shadow-xl overflow-hidden border border-stone-700">
+              <div className="w-24 h-24 mx-auto rounded-2xl bg-white p-1.5 shadow-xl overflow-hidden border border-[#C9A84C]/40">
                 <img
                   src={noteVisual.photoUrl}
-                  alt={activeNotePopup}
+                  alt={noteVisual.name || activeNotePopup}
                   referrerPolicy="no-referrer"
                   className="w-full h-full object-cover rounded-xl"
                 />
               </div>
 
               <div className="text-center space-y-1">
-                <span className="text-[10px] uppercase font-mono tracking-wider px-2.5 py-0.5 rounded-full bg-stone-900 border border-stone-800 text-[#F0D080]">
-                  {noteVisual.category}
-                </span>
                 <h4 className="text-xl font-bold font-serif-luxury text-stone-100 capitalize break-words">
-                  {activeNotePopup}
+                  {noteVisual.name || activeNotePopup}
                 </h4>
+                {noteVisual.botanicalName && (
+                  <p className="text-xs text-stone-400 italic">
+                    {noteVisual.botanicalName}
+                  </p>
+                )}
+                <p className="text-[10px] uppercase font-mono tracking-wider font-bold text-[#F0D080]">
+                  Grupo: {noteVisual.category.toUpperCase()}
+                </p>
               </div>
 
-              <p className="text-xs text-stone-300 leading-relaxed text-center bg-black/40 p-3 rounded-xl border border-stone-800 break-words whitespace-normal">
-                {noteVisual.description}
-              </p>
+              <div className="p-3.5 bg-black/50 rounded-2xl border border-stone-800 text-xs text-stone-300 leading-relaxed text-left space-y-1">
+                <span className="text-[#F0D080] font-bold text-[11px] block uppercase tracking-wide">
+                  Perfil Aromático:
+                </span>
+                <p>{noteVisual.description}</p>
+              </div>
 
               <button
                 type="button"

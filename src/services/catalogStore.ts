@@ -2,6 +2,13 @@ import { CatalogFragrance, CATALOG, OlfactoryPyramid } from '../data/fraganzaCat
 import { idbGet, idbSet, idbDelete } from './dbStorage';
 import { compressImage } from '../utils/imageCompressor';
 
+export interface AccordItem {
+  name: string;
+  percentage: number;
+  color?: string;
+  textColor?: string;
+}
+
 export interface FragranceOverride {
   image?: string;
   pyramid?: OlfactoryPyramid;
@@ -10,16 +17,31 @@ export interface FragranceOverride {
   sensation?: string;
   sweetness?: 'Fresco' | 'Moderado' | 'Muy Dulce' | 'Seco';
   intensity?: 'Suave' | 'Moderada' | 'Intensa' | 'Envolvente';
+  environment?: 'Día' | 'Noche' | 'Indistinto';
   occasion?: string;
+  mainAccords?: AccordItem[];
+  themeMode?: 'black' | 'white';
+  updatedAt?: string;
+}
+
+export interface CustomNoteDetail {
+  originalName: string;
+  displayName: string;
+  botanicalName?: string;
+  category: string;
+  description: string;
+  photoUrl: string;
   updatedAt?: string;
 }
 
 const STORAGE_KEY = 'fraganza_admin_overrides';
 const NOTE_PHOTOS_KEY = 'fraganza_custom_note_photos';
+const CUSTOM_NOTES_KEY = 'fraganza_custom_notes_full';
 
 // In-memory active caches for instant synchronous lookups
 let inMemoryOverrides: Record<string, FragranceOverride> = {};
 let inMemoryNotePhotos: Record<string, string> = {};
+let inMemoryCustomNotes: Record<string, CustomNoteDetail> = {};
 
 // Safe helper to read localStorage with quota error protection
 function readLocalStorage<T>(key: string, fallback: T): T {
@@ -40,12 +62,10 @@ function writeLocalStorageSafe(key: string, value: any): void {
     localStorage.setItem(key, JSON.stringify(value));
   } catch (err: any) {
     console.warn(`localStorage quota warning for key ${key}:`, err?.message || err);
-    // If quota exceeded, clean up large data URLs from localStorage copy while keeping them in IndexedDB
     try {
       if (typeof value === 'object' && value !== null) {
         const lightweightCopy: Record<string, any> = {};
         for (const [k, v] of Object.entries(value)) {
-          // If value is a long data URI (> 20KB), don't store it in localStorage to prevent quota lock
           if (typeof v === 'string' && v.startsWith('data:') && v.length > 20480) {
             continue;
           }
@@ -53,12 +73,15 @@ function writeLocalStorageSafe(key: string, value: any): void {
             lightweightCopy[k] = { ...(v as any), image: undefined };
             continue;
           }
+          if (typeof v === 'object' && v !== null && (v as any).photoUrl?.startsWith('data:') && (v as any).photoUrl?.length > 20480) {
+            lightweightCopy[k] = { ...(v as any), photoUrl: '' };
+            continue;
+          }
           lightweightCopy[k] = v;
         }
         localStorage.setItem(key, JSON.stringify(lightweightCopy));
       }
     } catch {
-      // If still fails, clear the localstorage key to prevent locking the app
       try {
         localStorage.removeItem(key);
       } catch {}
@@ -69,15 +92,17 @@ function writeLocalStorageSafe(key: string, value: any): void {
 // Initialize memory caches from localStorage immediately
 inMemoryOverrides = readLocalStorage<Record<string, FragranceOverride>>(STORAGE_KEY, {});
 inMemoryNotePhotos = readLocalStorage<Record<string, string>>(NOTE_PHOTOS_KEY, {});
+inMemoryCustomNotes = readLocalStorage<Record<string, CustomNoteDetail>>(CUSTOM_NOTES_KEY, {});
 
 // Asynchronously hydrate from IndexedDB for unbounded persistence
 let isHydratedFromIdb = false;
 async function hydrateFromIndexedDB() {
   if (typeof window === 'undefined') return;
   try {
-    const [idbOverrides, idbPhotos] = await Promise.all([
+    const [idbOverrides, idbPhotos, idbNotes] = await Promise.all([
       idbGet<Record<string, FragranceOverride>>(STORAGE_KEY),
-      idbGet<Record<string, string>>(NOTE_PHOTOS_KEY)
+      idbGet<Record<string, string>>(NOTE_PHOTOS_KEY),
+      idbGet<Record<string, CustomNoteDetail>>(CUSTOM_NOTES_KEY)
     ]);
 
     let hasNewData = false;
@@ -89,6 +114,17 @@ async function hydrateFromIndexedDB() {
 
     if (idbPhotos && Object.keys(idbPhotos).length > 0) {
       inMemoryNotePhotos = { ...inMemoryNotePhotos, ...idbPhotos };
+      hasNewData = true;
+    }
+
+    if (idbNotes && Object.keys(idbNotes).length > 0) {
+      inMemoryCustomNotes = { ...inMemoryCustomNotes, ...idbNotes };
+      // Also sync back to inMemoryNotePhotos for backward compat
+      Object.entries(inMemoryCustomNotes).forEach(([k, detail]) => {
+        if (detail.photoUrl && !inMemoryNotePhotos[k]) {
+          inMemoryNotePhotos[k] = detail.photoUrl;
+        }
+      });
       hasNewData = true;
     }
 
@@ -136,7 +172,10 @@ export function getCustomizedCatalog(): CatalogFragrance[] {
       sensation: override.sensation || fragrance.sensation,
       sweetness: (override.sweetness as any) || fragrance.sweetness,
       intensity: (override.intensity as any) || fragrance.intensity,
+      environment: (override.environment as any) || fragrance.environment,
       occasion: override.occasion || fragrance.occasion,
+      mainAccords: override.mainAccords,
+      themeMode: override.themeMode,
     };
   });
 }
@@ -204,17 +243,21 @@ export async function resetAdminFragranceUpdate(code: string): Promise<void> {
   }
 }
 
-// Custom Note Photos Storage (for Olfactory Pyramid notes)
-export function getStoredNotePhotos(): Record<string, string> {
-  return inMemoryNotePhotos;
+// --- RICH CUSTOM NOTES STORAGE ---
+export function getStoredCustomNotes(): Record<string, CustomNoteDetail> {
+  return inMemoryCustomNotes;
 }
 
-export async function saveCustomNotePhoto(noteName: string, rawPhotoUrl: string): Promise<void> {
-  try {
-    const key = noteName.toLowerCase().trim();
-    let optimizedUrl = rawPhotoUrl.trim();
+export function getStoredCustomNote(noteName: string): CustomNoteDetail | undefined {
+  const key = noteName.toLowerCase().trim();
+  return inMemoryCustomNotes[key];
+}
 
-    // If note photo is a data URI, compress to 256x256 jpeg (~10KB)
+export async function saveCustomNoteDetail(note: CustomNoteDetail): Promise<void> {
+  try {
+    const key = note.originalName.toLowerCase().trim();
+    let optimizedUrl = (note.photoUrl || '').trim();
+
     if (optimizedUrl.startsWith('data:')) {
       try {
         optimizedUrl = await compressImage(optimizedUrl, 256, 256, 0.75);
@@ -223,33 +266,67 @@ export async function saveCustomNotePhoto(noteName: string, rawPhotoUrl: string)
       }
     }
 
+    const record: CustomNoteDetail = {
+      ...note,
+      photoUrl: optimizedUrl,
+      updatedAt: new Date().toISOString()
+    };
+
+    inMemoryCustomNotes[key] = record;
     inMemoryNotePhotos[key] = optimizedUrl;
 
-    // 1. Save to IndexedDB (guaranteed high capacity)
+    // Persist to IndexedDB
+    await idbSet(CUSTOM_NOTES_KEY, inMemoryCustomNotes);
     await idbSet(NOTE_PHOTOS_KEY, inMemoryNotePhotos);
 
-    // 2. Save to localStorage safely (catches and mitigates QuotaExceededError)
+    // Persist to localStorage safely
+    writeLocalStorageSafe(CUSTOM_NOTES_KEY, inMemoryCustomNotes);
     writeLocalStorageSafe(NOTE_PHOTOS_KEY, inMemoryNotePhotos);
 
-    // 3. Dispatch events
-    window.dispatchEvent(new CustomEvent('fraganza_notes_updated', { detail: { noteName, photoUrl: optimizedUrl } }));
-    window.dispatchEvent(new CustomEvent('fraganza_catalog_updated', { detail: { noteName } }));
+    // Dispatch events
+    window.dispatchEvent(new CustomEvent('fraganza_notes_updated', { detail: { noteName: note.originalName, record } }));
+    window.dispatchEvent(new CustomEvent('fraganza_catalog_updated', { detail: { noteName: note.originalName } }));
   } catch (e) {
-    console.error('Error saving custom note photo:', e);
+    console.error('Error saving custom note detail:', e);
   }
 }
 
-export async function resetCustomNotePhoto(noteName: string): Promise<void> {
+export async function resetCustomNoteDetail(noteName: string): Promise<void> {
   try {
     const key = noteName.toLowerCase().trim();
+    delete inMemoryCustomNotes[key];
     delete inMemoryNotePhotos[key];
 
+    await idbSet(CUSTOM_NOTES_KEY, inMemoryCustomNotes);
     await idbSet(NOTE_PHOTOS_KEY, inMemoryNotePhotos);
+
+    writeLocalStorageSafe(CUSTOM_NOTES_KEY, inMemoryCustomNotes);
     writeLocalStorageSafe(NOTE_PHOTOS_KEY, inMemoryNotePhotos);
 
     window.dispatchEvent(new CustomEvent('fraganza_notes_updated', { detail: { noteName } }));
     window.dispatchEvent(new CustomEvent('fraganza_catalog_updated', { detail: { noteName } }));
   } catch (e) {
-    console.error('Error resetting custom note photo:', e);
+    console.error('Error resetting custom note detail:', e);
   }
+}
+
+// Backward compatible helper for note photos
+export function getStoredNotePhotos(): Record<string, string> {
+  return inMemoryNotePhotos;
+}
+
+export async function saveCustomNotePhoto(noteName: string, rawPhotoUrl: string): Promise<void> {
+  const existing = getStoredCustomNote(noteName);
+  await saveCustomNoteDetail({
+    originalName: noteName,
+    displayName: existing?.displayName || noteName,
+    botanicalName: existing?.botanicalName,
+    category: existing?.category || 'Florales',
+    description: existing?.description || `Nota olfativa oficial: ${noteName}`,
+    photoUrl: rawPhotoUrl
+  });
+}
+
+export async function resetCustomNotePhoto(noteName: string): Promise<void> {
+  await resetCustomNoteDetail(noteName);
 }

@@ -43,6 +43,8 @@ export interface CatalogFragrance {
   tags: string[];
   description: string;
   image: string;
+  mainAccords?: { name: string; percentage: number; color?: string; textColor?: string }[];
+  themeMode?: 'black' | 'white';
 }
 
 export const CATALOG: CatalogFragrance[] = catalogData as CatalogFragrance[];

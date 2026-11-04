@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { CatalogFragrance } from '../data/fraganzaCatalog';
-import { saveAdminFragranceUpdate, resetAdminFragranceUpdate, getStoredOverrides } from '../services/catalogStore';
-import { getPerfumeBottlePhoto } from '../data/fragranceVisuals';
+import { saveAdminFragranceUpdate, resetAdminFragranceUpdate, getStoredOverrides, AccordItem } from '../services/catalogStore';
+import { getPerfumeBottlePhoto, computeFragranticaAccords, getAccordColor, FRAGRANTICA_ACCORD_COLORS } from '../data/fragranceVisuals';
 import { compressImage } from '../utils/imageCompressor';
 import {
   X,
@@ -15,7 +15,12 @@ import {
   Layers,
   Save,
   Clipboard,
-  Loader2
+  Loader2,
+  Sun,
+  Moon,
+  Plus,
+  Trash2,
+  Palette
 } from 'lucide-react';
 
 interface AdminFragranceEditorModalProps {
@@ -24,6 +29,28 @@ interface AdminFragranceEditorModalProps {
   onClose: () => void;
   onSaved?: (updatedFragrance: CatalogFragrance) => void;
 }
+
+const COMMON_FRAGRANTICA_ACCORDS = [
+  'cítrico',
+  'verde',
+  'afrutados',
+  'almizclado',
+  'amaderado',
+  'aromático',
+  'atalcado',
+  'fresco especiado',
+  'fresco',
+  'florales',
+  'floral blanco',
+  'dulce',
+  'ámbar',
+  'cuero',
+  'acuático',
+  'marino',
+  'ozónico',
+  'cálido especiado',
+  'avainillado'
+];
 
 export const AdminFragranceEditorModal: React.FC<AdminFragranceEditorModalProps> = ({
   fragrance,
@@ -54,6 +81,25 @@ export const AdminFragranceEditorModal: React.FC<AdminFragranceEditorModalProps>
   const [sensation, setSensation] = useState<string>(
     currentOverride.sensation || fragrance.sensation || ''
   );
+
+  // Day/Night and White/Black theme mode
+  const [environment, setEnvironment] = useState<'Día' | 'Noche' | 'Indistinto'>(
+    (currentOverride.environment as any) || fragrance.environment || 'Indistinto'
+  );
+  const [themeMode, setThemeMode] = useState<'black' | 'white'>(
+    currentOverride.themeMode || fragrance.themeMode || 'black'
+  );
+
+  // Accords editor state
+  const initialAccords = currentOverride.mainAccords || computeFragranticaAccords(
+    fragrance.family,
+    fragrance.allNotes,
+    fragrance.sweetness,
+    fragrance.intensity
+  );
+  const [accordsList, setAccordsList] = useState<AccordItem[]>(initialAccords);
+  const [newAccordName, setNewAccordName] = useState<string>('');
+
   const [saveSuccess, setSaveSuccess] = useState<boolean>(false);
   const [saveError, setSaveError] = useState<string | null>(null);
   const [pasteNotice, setPasteNotice] = useState<string | null>(null);
@@ -142,9 +188,7 @@ export const AdminFragranceEditorModal: React.FC<AdminFragranceEditorModalProps>
               return;
             }
           }
-        } catch {
-          // Clipboard read may not be permitted or text only
-        }
+        } catch {}
       }
 
       const text = await navigator.clipboard.readText();
@@ -167,18 +211,13 @@ export const AdminFragranceEditorModal: React.FC<AdminFragranceEditorModalProps>
     }
   };
 
-  // Handle local image file upload and convert to base64 data URL
+  // Handle local image file upload
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
     if (!file.type.startsWith('image/')) {
       setFileError('Por favor selecciona un archivo de imagen válido (PNG, JPG, WEBP).');
-      return;
-    }
-
-    if (file.size > 15 * 1024 * 1024) {
-      setFileError('La imagen no debe superar los 15MB.');
       return;
     }
 
@@ -190,6 +229,41 @@ export const AdminFragranceEditorModal: React.FC<AdminFragranceEditorModalProps>
       }
     };
     reader.readAsDataURL(file);
+  };
+
+  // Accords handlers
+  const handleAddAccord = (nameToAdd?: string) => {
+    const name = (nameToAdd || newAccordName).trim().toLowerCase();
+    if (!name) return;
+
+    if (accordsList.some((a) => a.name.toLowerCase() === name)) {
+      setNewAccordName('');
+      return;
+    }
+
+    const colorCfg = getAccordColor(name);
+    const updated = [
+      ...accordsList,
+      {
+        name,
+        color: colorCfg.color,
+        textColor: colorCfg.textColor,
+        percentage: Math.max(50, 100 - accordsList.length * 5)
+      }
+    ];
+
+    setAccordsList(updated);
+    setNewAccordName('');
+  };
+
+  const handleRemoveAccord = (index: number) => {
+    setAccordsList(accordsList.filter((_, i) => i !== index));
+  };
+
+  const handleAccordPercentChange = (index: number, val: number) => {
+    const updated = [...accordsList];
+    updated[index] = { ...updated[index], percentage: val };
+    setAccordsList(updated);
   };
 
   const handleSave = async () => {
@@ -224,6 +298,9 @@ export const AdminFragranceEditorModal: React.FC<AdminFragranceEditorModalProps>
         allNotes: allParsedNotes,
         description: description.trim() || undefined,
         sensation: sensation.trim() || undefined,
+        environment,
+        themeMode,
+        mainAccords: accordsList
       });
 
       const updatedFragrance: CatalogFragrance = {
@@ -237,6 +314,9 @@ export const AdminFragranceEditorModal: React.FC<AdminFragranceEditorModalProps>
         allNotes: allParsedNotes,
         description: description.trim() || fragrance.description,
         sensation: sensation.trim() || fragrance.sensation,
+        environment,
+        themeMode,
+        mainAccords: accordsList
       };
 
       setSaveSuccess(true);
@@ -268,6 +348,14 @@ export const AdminFragranceEditorModal: React.FC<AdminFragranceEditorModalProps>
         setBaseNotes(fragrance.pyramid.base.join(', '));
         setDescription(fragrance.description);
         setSensation(fragrance.sensation);
+        setEnvironment(fragrance.environment);
+        setThemeMode('black');
+        setAccordsList(computeFragranticaAccords(
+          fragrance.family,
+          fragrance.allNotes,
+          fragrance.sweetness,
+          fragrance.intensity
+        ));
         setSaveSuccess(true);
         if (timerRef.current) clearTimeout(timerRef.current);
         timerRef.current = setTimeout(() => {
@@ -322,7 +410,7 @@ export const AdminFragranceEditorModal: React.FC<AdminFragranceEditorModalProps>
         {saveSuccess && (
           <div className="my-4 p-3 rounded-2xl bg-emerald-950/70 border border-emerald-500/60 text-emerald-200 text-xs font-semibold flex items-center gap-2 animate-in fade-in">
             <Check className="w-4 h-4 text-emerald-400" />
-            <span>¡Cambios guardados con éxito! La nueva foto y notas se actualizaron en toda la app.</span>
+            <span>¡Cambios guardados con éxito! La nueva foto, notas y acordes se actualizaron en toda la app.</span>
           </div>
         )}
 
@@ -373,7 +461,6 @@ export const AdminFragranceEditorModal: React.FC<AdminFragranceEditorModalProps>
 
               {/* Paste & Upload Controls */}
               <div className="sm:col-span-8 space-y-3">
-                {/* 1. Paste Copied Image Button */}
                 <button
                   type="button"
                   disabled={isProcessing}
@@ -393,7 +480,6 @@ export const AdminFragranceEditorModal: React.FC<AdminFragranceEditorModalProps>
                   )}
                 </button>
 
-                {/* 2. URL Input */}
                 <div>
                   <label className="block text-[11px] text-stone-300 font-semibold mb-1">
                     O pega la dirección URL copiada de la imagen:
@@ -407,7 +493,6 @@ export const AdminFragranceEditorModal: React.FC<AdminFragranceEditorModalProps>
                   />
                 </div>
 
-                {/* 3. Secondary File Upload */}
                 <div className="pt-1 border-t border-stone-800/80">
                   <label className="cursor-pointer inline-flex items-center gap-1.5 text-[11px] text-stone-400 hover:text-stone-200 transition">
                     <Upload className="w-3.5 h-3.5 text-[#C9A84C]" />
@@ -426,17 +511,193 @@ export const AdminFragranceEditorModal: React.FC<AdminFragranceEditorModalProps>
                     </p>
                   )}
                 </div>
+              </div>
+            </div>
+          </div>
 
-                {imageUrl && (
+          {/* DÍA / NOCHE & MODO BLANCO / NEGRO (FRAGRANTICA STYLE) */}
+          <div className="p-5 rounded-2xl bg-[#141414] border border-stone-800 space-y-4">
+            <label className="text-xs uppercase font-bold tracking-wider text-[#F0D080] flex items-center gap-2">
+              <Sun className="w-4 h-4" />
+              <span>Ocasión & Modo Visual (Día / Noche)</span>
+            </label>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              {/* Uso Diario vs Nocturno */}
+              <div className="space-y-1.5">
+                <span className="text-xs text-stone-300 font-semibold block">
+                  Uso recomendado:
+                </span>
+                <div className="flex rounded-xl bg-black/80 p-1 border border-stone-800">
+                  {(['Día', 'Noche', 'Indistinto'] as const).map((mode) => (
+                    <button
+                      key={mode}
+                      type="button"
+                      onClick={() => setEnvironment(mode)}
+                      className={`flex-1 py-1.5 text-xs font-semibold rounded-lg transition ${
+                        environment === mode
+                          ? 'bg-[#C9A84C] text-stone-950 shadow'
+                          : 'text-stone-400 hover:text-stone-200'
+                      }`}
+                    >
+                      {mode === 'Día' ? '☀️ Día' : mode === 'Noche' ? '🌙 Noche' : '✨ Versátil'}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Fondo Blanco vs Fondo Negro */}
+              <div className="space-y-1.5">
+                <span className="text-xs text-stone-300 font-semibold block">
+                  Fondo de la Ficha (Estilo Fragrantica):
+                </span>
+                <div className="flex rounded-xl bg-black/80 p-1 border border-stone-800">
                   <button
                     type="button"
-                    onClick={() => setImageUrl('')}
-                    className="text-[11px] text-stone-500 hover:text-rose-400 underline block"
+                    onClick={() => setThemeMode('white')}
+                    className={`flex-1 py-1.5 text-xs font-semibold rounded-lg transition flex items-center justify-center gap-1.5 ${
+                      themeMode === 'white'
+                        ? 'bg-white text-stone-900 shadow font-bold'
+                        : 'text-stone-400 hover:text-stone-200'
+                    }`}
                   >
-                    Quitar foto personalizada (volver a original)
+                    <span>⚪ Fondo Blanco (Día)</span>
                   </button>
-                )}
+                  <button
+                    type="button"
+                    onClick={() => setThemeMode('black')}
+                    className={`flex-1 py-1.5 text-xs font-semibold rounded-lg transition flex items-center justify-center gap-1.5 ${
+                      themeMode === 'black'
+                        ? 'bg-stone-800 text-[#F0D080] border border-[#C9A84C]/40 shadow font-bold'
+                        : 'text-stone-400 hover:text-stone-200'
+                    }`}
+                  >
+                    <span>⚫ Fondo Negro (Noche)</span>
+                  </button>
+                </div>
               </div>
+            </div>
+          </div>
+
+          {/* ACORDES PRINCIPALES (FRAGRANTICA STYLE) */}
+          <div className="p-5 rounded-2xl bg-[#141414] border border-stone-800 space-y-4">
+            <div className="flex items-center justify-between">
+              <label className="text-xs uppercase font-bold tracking-wider text-[#F0D080] flex items-center gap-2">
+                <Palette className="w-4 h-4" />
+                <span>Modificar Acordes Principales (Fragrantica)</span>
+              </label>
+              <span className="text-[11px] text-stone-400 font-mono">
+                {accordsList.length} acordes
+              </span>
+            </div>
+
+            {/* Quick accord badges to add */}
+            <div className="space-y-1.5">
+              <span className="text-[11px] text-stone-400 block font-medium">
+                Haz clic para añadir acordes populares de Fragrantica:
+              </span>
+              <div className="flex flex-wrap gap-1.5 max-h-28 overflow-y-auto p-2 bg-black/60 rounded-xl border border-stone-800">
+                {COMMON_FRAGRANTICA_ACCORDS.map((accName) => {
+                  const palette = getAccordColor(accName);
+                  const isAdded = accordsList.some((a) => a.name.toLowerCase() === accName);
+                  return (
+                    <button
+                      key={accName}
+                      type="button"
+                      disabled={isAdded}
+                      onClick={() => handleAddAccord(accName)}
+                      style={{
+                        backgroundColor: isAdded ? '#27272a' : palette.color,
+                        color: isAdded ? '#71717a' : palette.textColor
+                      }}
+                      className="px-2.5 py-1 rounded-md text-[11px] font-bold shadow-sm transition disabled:opacity-40 disabled:cursor-not-allowed hover:brightness-110 flex items-center gap-1"
+                    >
+                      {!isAdded && <Plus className="w-3 h-3 shrink-0" />}
+                      <span>{accName}</span>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Add Custom Accord Input */}
+            <div className="flex gap-2">
+              <input
+                type="text"
+                value={newAccordName}
+                onChange={(e) => setNewAccordName(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    e.preventDefault();
+                    handleAddAccord();
+                  }
+                }}
+                placeholder="Escribe otro acorde (ej: tabaco, miel, té verde, cacao...)"
+                className="flex-1 bg-black/70 border border-stone-800 rounded-xl px-3.5 py-2 text-xs text-stone-100 placeholder-stone-600 focus:outline-none focus:border-[#C9A84C]"
+              />
+              <button
+                type="button"
+                onClick={() => handleAddAccord()}
+                className="px-4 py-2 rounded-xl bg-[#C9A84C] text-stone-950 font-bold text-xs hover:bg-[#F0D080] transition flex items-center gap-1"
+              >
+                <Plus className="w-3.5 h-3.5" />
+                <span>Añadir</span>
+              </button>
+            </div>
+
+            {/* Current Accords List with Percentage Sliders & Delete */}
+            <div className="space-y-2 pt-2">
+              <span className="text-[11px] text-stone-300 font-semibold block">
+                Acordes asignados a este perfume (vista escalonada tipo Fragrantica):
+              </span>
+
+              {accordsList.length === 0 ? (
+                <p className="text-xs text-stone-500 italic p-3 bg-black/40 rounded-xl border border-stone-800 text-center">
+                  No hay acordes asignados. Selecciona o escribe acordes arriba.
+                </p>
+              ) : (
+                <div className="space-y-2 max-h-60 overflow-y-auto pr-1">
+                  {accordsList.map((acc, index) => {
+                    const palette = getAccordColor(acc.name);
+                    return (
+                      <div
+                        key={`${acc.name}-${index}`}
+                        className="flex items-center gap-3 p-2.5 rounded-xl bg-black/80 border border-stone-800 text-xs"
+                      >
+                        <div
+                          style={{ backgroundColor: palette.color, color: palette.textColor }}
+                          className="px-3 py-1 rounded-md font-bold text-xs min-w-28 text-center shrink-0 shadow-sm"
+                        >
+                          {acc.name}
+                        </div>
+
+                        <div className="flex-1 flex items-center gap-2">
+                          <input
+                            type="range"
+                            min="30"
+                            max="100"
+                            value={acc.percentage}
+                            onChange={(e) => handleAccordPercentChange(index, Number(e.target.value))}
+                            className="flex-1 accent-[#C9A84C] h-1.5 bg-stone-800 rounded-lg cursor-pointer"
+                          />
+                          <span className="text-[11px] text-stone-400 font-mono w-8 text-right">
+                            {acc.percentage}%
+                          </span>
+                        </div>
+
+                        <button
+                          type="button"
+                          onClick={() => handleRemoveAccord(index)}
+                          className="p-1 rounded-lg text-stone-500 hover:text-rose-400 hover:bg-stone-900 transition"
+                          title="Eliminar acorde"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
             </div>
           </div>
 
@@ -525,7 +786,7 @@ export const AdminFragranceEditorModal: React.FC<AdminFragranceEditorModalProps>
               ) : (
                 <>
                   <Save className="w-4 h-4" />
-                  <span>Guardar Foto Real & Notas</span>
+                  <span>Guardar Ficha & Acordes</span>
                 </>
               )}
             </button>

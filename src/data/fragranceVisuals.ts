@@ -1,6 +1,6 @@
 // Real photographic assets for fragrance notes, perfume bottles, brand logos, and main accords
 import { getFragranceBottlePhoto } from './fragranceBottleImages';
-import { getStoredNotePhotos } from '../services/catalogStore';
+import { getStoredNotePhotos, getStoredCustomNotes } from '../services/catalogStore';
 
 export interface RealNoteVisual {
   name: string;
@@ -547,16 +547,36 @@ export const CATEGORY_FALLBACK_PHOTOS: Record<string, string> = {
 };
 
 // Helper to determine the authentic real photo URL of any note with precise visual alignment
-export function getRealNotePhoto(noteName: string): { photoUrl: string; category: string; description: string } {
+export interface NotePhotoResult {
+  name?: string;
+  photoUrl: string;
+  category: string;
+  description: string;
+  botanicalName?: string;
+}
+
+export function getRealNotePhoto(noteName: string): NotePhotoResult {
   const trimmed = noteName.trim();
   const lower = trimmed.toLowerCase();
 
-  // 0. Check custom note photos saved by admin (pasted images or URLs)
+  // 0. Check rich custom notes saved by admin
   try {
-    const customPhotos = getStoredNotePhotos();
-    if (customPhotos[lower]) {
+    const customNotes = getStoredCustomNotes();
+    const custom = customNotes[lower];
+    if (custom) {
       return {
-        photoUrl: customPhotos[lower],
+        name: custom.displayName || trimmed,
+        photoUrl: custom.photoUrl || (CATEGORY_FALLBACK_PHOTOS as any)[custom.category] || CATEGORY_FALLBACK_PHOTOS['Florales'],
+        category: custom.category || 'Florales',
+        description: custom.description || `Nota olfativa oficial: ${trimmed}`,
+        botanicalName: custom.botanicalName
+      };
+    }
+    const legacyPhotos = getStoredNotePhotos();
+    if (legacyPhotos[lower]) {
+      return {
+        name: trimmed,
+        photoUrl: legacyPhotos[lower],
         category: 'Florales',
         description: `Nota olfativa oficial: ${trimmed}`
       };
@@ -928,6 +948,7 @@ export function getRealNotePhoto(noteName: string): { photoUrl: string; category
 
   // Category fallback
   return {
+    name: trimmed,
     photoUrl: CATEGORY_FALLBACK_PHOTOS['Florales'],
     category: 'Florales',
     description: `Nota botánica natural del catálogo Fraganza: ${trimmed}`
@@ -955,6 +976,59 @@ export const BRAND_CONFIGS: Record<string, { label: string; fontClass: string; b
   'Fraganza': { label: 'FRAGANZA', fontClass: 'tracking-[0.3em] font-serif font-bold', bgColor: '#ffffff', textColor: '#b45309' }
 };
 
+// Full authentic Fragrantica color palette dictionary
+export const FRAGRANTICA_ACCORD_COLORS: Record<string, { color: string; textColor: string }> = {
+  'cítrico': { color: '#ffff33', textColor: '#000000' },
+  'verde': { color: '#16a34a', textColor: '#ffffff' },
+  'afrutados': { color: '#f87171', textColor: '#ffffff' },
+  'almizclado': { color: '#ede9fe', textColor: '#312e81' },
+  'amaderado': { color: '#8d5b3a', textColor: '#ffffff' },
+  'aromático': { color: '#5eead4', textColor: '#134e4a' },
+  'atalcado': { color: '#f5ebe0', textColor: '#3d3029' },
+  'fresco especiado': { color: '#a3e635', textColor: '#1a2e05' },
+  'fresco': { color: '#cffafe', textColor: '#164e63' },
+  'florales': { color: '#f472b6', textColor: '#831843' },
+  'floral': { color: '#f472b6', textColor: '#831843' },
+  'floral blanco': { color: '#fbcfe8', textColor: '#831843' },
+  'floral amarillo': { color: '#fef08a', textColor: '#713f12' },
+  'dulce': { color: '#be123c', textColor: '#ffffff' },
+  'ámbar': { color: '#d97706', textColor: '#ffffff' },
+  'cálido especiado': { color: '#b45309', textColor: '#ffffff' },
+  'especiado': { color: '#ea580c', textColor: '#ffffff' },
+  'cuero': { color: '#44403c', textColor: '#fafaf9' },
+  'acuático': { color: '#38bdf8', textColor: '#082f49' },
+  'marino': { color: '#0284c7', textColor: '#ffffff' },
+  'ozónico': { color: '#bae6fd', textColor: '#0369a1' },
+  'terroso': { color: '#78716c', textColor: '#ffffff' },
+  'musgo': { color: '#4d7c0f', textColor: '#ffffff' },
+  'avainillado': { color: '#fde047', textColor: '#713f12' },
+  'vainilla': { color: '#fde047', textColor: '#713f12' },
+  'ahumado': { color: '#52525b', textColor: '#fafafa' },
+  'balsámico': { color: '#9a3412', textColor: '#ffffff' },
+  'animal': { color: '#3f3f46', textColor: '#fafafa' },
+  'lavanda': { color: '#c4b5fd', textColor: '#3b0764' },
+  'metálico': { color: '#94a3b8', textColor: '#0f172a' },
+  'canela': { color: '#b45309', textColor: '#ffffff' },
+  'caramelo': { color: '#c2410c', textColor: '#ffffff' },
+  'café': { color: '#713f12', textColor: '#ffffff' },
+  'chocolate': { color: '#582f0e', textColor: '#ffffff' },
+  'licoroso': { color: '#881337', textColor: '#ffffff' },
+  'alcanforado': { color: '#a7f3d0', textColor: '#064e3b' },
+};
+
+export function getAccordColor(name: string): { color: string; textColor: string } {
+  const lower = name.toLowerCase().trim();
+  if (FRAGRANTICA_ACCORD_COLORS[lower]) {
+    return FRAGRANTICA_ACCORD_COLORS[lower];
+  }
+  for (const [key, val] of Object.entries(FRAGRANTICA_ACCORD_COLORS)) {
+    if (lower.includes(key) || key.includes(lower)) {
+      return val;
+    }
+  }
+  return { color: '#eab308', textColor: '#000000' };
+}
+
 // Generates Fragrantica-style "Acordes Principales" with precise colors and percentage widths
 export interface MainAccord {
   name: string;
@@ -967,75 +1041,131 @@ export function computeFragranticaAccords(
   family: string,
   allNotes: string[],
   sweetness: string,
-  intensity: string
+  intensity: string,
+  customAccords?: { name: string; percentage?: number; color?: string; textColor?: string }[]
 ): MainAccord[] {
+  // If custom accords provided by admin, use them directly
+  if (customAccords && customAccords.length > 0) {
+    const total = customAccords.length;
+    return customAccords.map((acc, idx) => {
+      const palette = getAccordColor(acc.name);
+      // Cascading staircase percentage: 100% down to 50%
+      const stepPercent = Math.max(48, Math.round(100 - (idx / Math.max(1, total - 1)) * 48));
+      return {
+        name: acc.name.toLowerCase().trim(),
+        color: acc.color || palette.color,
+        textColor: acc.textColor || palette.textColor,
+        percentage: acc.percentage ?? stepPercent
+      };
+    });
+  }
+
   const notesLower = allNotes.join(' ').toLowerCase();
-  const accords: MainAccord[] = [];
+  const rawList: { name: string; priority: number }[] = [];
 
-  // Acuático / Marino
-  if (notesLower.includes('mar') || notesLower.includes('acuát') || notesLower.includes('calone') || notesLower.includes('agua') || family.includes('Acuát')) {
-    accords.push({ name: 'acuático', color: '#38bdf8', textColor: '#0c4a6e', percentage: 95 });
+  // 1. Cítrico
+  if (notesLower.includes('limón') || notesLower.includes('bergamot') || notesLower.includes('mandarina') || notesLower.includes('naranja') || notesLower.includes('pomelo') || family.includes('Cítric')) {
+    rawList.push({ name: 'cítrico', priority: 100 });
   }
 
-  // Ozónico / Fresco
-  if (notesLower.includes('ozón') || notesLower.includes('sal') || notesLower.includes('brisa') || notesLower.includes('menta')) {
-    accords.push({ name: 'ozónico', color: '#bae6fd', textColor: '#0369a1', percentage: 84 });
+  // 2. Verde
+  if (notesLower.includes('hoja') || notesLower.includes('verde') || notesLower.includes('gálbano') || notesLower.includes('té verde') || notesLower.includes('menta') || notesLower.includes('hierba') || notesLower.includes('vetiver')) {
+    rawList.push({ name: 'verde', priority: 96 });
   }
 
-  // Afrutados
-  if (notesLower.includes('pera') || notesLower.includes('sandía') || notesLower.includes('fresa') || notesLower.includes('manzana') || notesLower.includes('fruta') || notesLower.includes('melocotón') || notesLower.includes('piña')) {
-    accords.push({ name: 'afrutados', color: '#ea580c', textColor: '#ffffff', percentage: 76 });
+  // 3. Afrutados
+  if (notesLower.includes('pera') || notesLower.includes('sandía') || notesLower.includes('fresa') || notesLower.includes('manzana') || notesLower.includes('grosella') || notesLower.includes('fruta') || notesLower.includes('melocotón') || notesLower.includes('piña') || notesLower.includes('cereza') || notesLower.includes('mango') || notesLower.includes('frambuesa') || family.includes('Frutal')) {
+    rawList.push({ name: 'afrutados', priority: 92 });
   }
 
-  // Dulce / Gourmand
-  if (sweetness === 'Muy Dulce' || sweetness === 'Moderado' || notesLower.includes('vainill') || notesLower.includes('caramel') || notesLower.includes('praliné') || notesLower.includes('azúcar')) {
-    accords.push({ name: 'dulce', color: '#991b1b', textColor: '#ffffff', percentage: 68 });
+  // 4. Almizclado
+  if (notesLower.includes('almizcle') || notesLower.includes('musk') || notesLower.includes('ambret') || notesLower.includes('cashmeran')) {
+    rawList.push({ name: 'almizclado', priority: 88 });
   }
 
-  // Fresco
-  if (notesLower.includes('limón') || notesLower.includes('fresc') || notesLower.includes('verde') || notesLower.includes('bergamot')) {
-    accords.push({ name: 'fresco', color: '#2dd4bf', textColor: '#134e4a', percentage: 60 });
+  // 5. Amaderado
+  if (family.includes('Amaderad') || notesLower.includes('cedro') || notesLower.includes('sándalo') || notesLower.includes('madera') || notesLower.includes('oud') || notesLower.includes('guayaco') || notesLower.includes('ciprés')) {
+    rawList.push({ name: 'amaderado', priority: 84 });
   }
 
-  // Floral
-  if (family.includes('Floral') || notesLower.includes('rosa') || notesLower.includes('jazm') || notesLower.includes('flor')) {
-    accords.push({ name: 'floral blanco', color: '#fbcfe8', textColor: '#831843', percentage: 72 });
+  // 6. Aromático
+  if (notesLower.includes('lavanda') || notesLower.includes('romero') || notesLower.includes('salvia') || notesLower.includes('albahaca') || notesLower.includes('tomillo') || notesLower.includes('estragón') || family.includes('Aromátic')) {
+    rawList.push({ name: 'aromático', priority: 80 });
   }
 
-  // Amaderado
-  if (family.includes('Amaderad') || notesLower.includes('cedro') || notesLower.includes('sándalo') || notesLower.includes('madera')) {
-    accords.push({ name: 'amaderado', color: '#854d0e', textColor: '#ffffff', percentage: 78 });
+  // 7. Atalcado
+  if (notesLower.includes('iris') || notesLower.includes('violeta') || notesLower.includes('heliotropo') || notesLower.includes('polvo') || notesLower.includes('orris')) {
+    rawList.push({ name: 'atalcado', priority: 76 });
   }
 
-  // Ámbar / Cálido
-  if (notesLower.includes('ámbar') || notesLower.includes('tonka') || notesLower.includes('especi')) {
-    accords.push({ name: 'ámbar', color: '#d97706', textColor: '#ffffff', percentage: 65 });
+  // 8. Fresco Especiado
+  if (notesLower.includes('jengibre') || notesLower.includes('cardamomo') || notesLower.includes('pimienta rosa') || notesLower.includes('cilantro')) {
+    rawList.push({ name: 'fresco especiado', priority: 72 });
   }
 
-  // Atalcado
-  if (notesLower.includes('iris') || notesLower.includes('violeta') || notesLower.includes('almizcle')) {
-    accords.push({ name: 'atalcado', color: '#e9d5ff', textColor: '#581c87', percentage: 55 });
+  // 9. Fresco
+  if (notesLower.includes('fresc') || notesLower.includes('agua') || sweetness === 'Fresco' || family.includes('Acuát')) {
+    rawList.push({ name: 'fresco', priority: 68 });
   }
 
-  // Cuero
-  if (notesLower.includes('cuero')) {
-    accords.push({ name: 'cuero', color: '#44403c', textColor: '#fafaf9', percentage: 70 });
+  // 10. Florales / Floral blanco
+  if (family.includes('Floral') || notesLower.includes('rosa') || notesLower.includes('jazm') || notesLower.includes('peonía') || notesLower.includes('flor') || notesLower.includes('neroli') || notesLower.includes('azahar') || notesLower.includes('magnolia')) {
+    rawList.push({ name: 'florales', priority: 64 });
   }
 
-  // Fallbacks if fewer than 3 accords
-  if (accords.length === 0) {
-    accords.push({ name: 'fresco', color: '#2dd4bf', textColor: '#134e4a', percentage: 90 });
-    accords.push({ name: 'aromático', color: '#10b981', textColor: '#ffffff', percentage: 75 });
-    accords.push({ name: 'amaderado', color: '#854d0e', textColor: '#ffffff', percentage: 60 });
-  } else if (accords.length === 1) {
-    accords.push({ name: 'aromático', color: '#10b981', textColor: '#ffffff', percentage: 65 });
-    accords.push({ name: 'amaderado', color: '#854d0e', textColor: '#ffffff', percentage: 50 });
+  // 11. Ámbar
+  if (notesLower.includes('ámbar') || notesLower.includes('benjuí') || notesLower.includes('ládano') || notesLower.includes('resina')) {
+    rawList.push({ name: 'ámbar', priority: 60 });
   }
 
-  // Sort strictly from highest percentage to lowest percentage (De mayor a menor)
-  accords.sort((a, b) => b.percentage - a.percentage);
+  // 12. Dulce / Vainilla
+  if (sweetness === 'Muy Dulce' || sweetness === 'Moderado' || notesLower.includes('vainill') || notesLower.includes('caramel') || notesLower.includes('praliné') || notesLower.includes('azúcar') || notesLower.includes('haba tonka')) {
+    rawList.push({ name: 'dulce', priority: 56 });
+  }
 
-  return accords.slice(0, 5);
+  // 13. Cuero
+  if (notesLower.includes('cuero') || notesLower.includes('gamuza') || notesLower.includes('abedul')) {
+    rawList.push({ name: 'cuero', priority: 52 });
+  }
+
+  // 14. Marino / Acuático / Ozónico
+  if (notesLower.includes('mar') || notesLower.includes('sal') || notesLower.includes('ozón') || notesLower.includes('calone')) {
+    rawList.push({ name: 'marino', priority: 48 });
+  }
+
+  // Fallbacks if fewer than 3
+  if (rawList.length === 0) {
+    rawList.push({ name: 'cítrico', priority: 100 });
+    rawList.push({ name: 'fresco', priority: 90 });
+    rawList.push({ name: 'amaderado', priority: 80 });
+  } else if (rawList.length === 1) {
+    rawList.push({ name: 'aromático', priority: 80 });
+    rawList.push({ name: 'amaderado', priority: 70 });
+  }
+
+  // Remove duplicates
+  const seen = new Set<string>();
+  const uniqueList = rawList.filter((item) => {
+    if (seen.has(item.name)) return false;
+    seen.add(item.name);
+    return true;
+  });
+
+  // Take all detected (up to 10) and compute cascading staircase widths
+  const selected = uniqueList.slice(0, 10);
+  const totalCount = selected.length;
+
+  return selected.map((item, idx) => {
+    const palette = getAccordColor(item.name);
+    // Signature Fragrantica staircase: top is 100%, each step is slightly shorter down to ~50%
+    const stepPercent = Math.max(48, Math.round(100 - (idx / Math.max(1, totalCount - 1)) * 48));
+    return {
+      name: item.name,
+      color: palette.color,
+      textColor: palette.textColor,
+      percentage: stepPercent
+    };
+  });
 }
 
 // Curated real perfume bottle portraits with crystal reflections and authentic shapes

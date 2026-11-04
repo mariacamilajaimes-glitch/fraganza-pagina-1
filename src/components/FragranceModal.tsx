@@ -30,7 +30,10 @@ import {
   Droplets,
   Wind,
   Edit3,
-  Camera
+  Camera,
+  Sun,
+  Moon,
+  Scale
 } from 'lucide-react';
 
 interface FragranceModalProps {
@@ -41,6 +44,8 @@ interface FragranceModalProps {
   onSelectAnother: (fragrance: CatalogFragrance) => void;
   isAdmin?: boolean;
   onRequireAdminAuth?: () => void;
+  onAddToCompare?: (fragrance: CatalogFragrance) => void;
+  isCompared?: boolean;
 }
 
 export const FragranceModal: React.FC<FragranceModalProps> = ({
@@ -51,6 +56,8 @@ export const FragranceModal: React.FC<FragranceModalProps> = ({
   onSelectAnother,
   isAdmin = false,
   onRequireAdminAuth,
+  onAddToCompare,
+  isCompared = false,
 }) => {
   const [selectedNotePopup, setSelectedNotePopup] = useState<string | null>(null);
   const [isAdminEditorOpen, setIsAdminEditorOpen] = useState<boolean>(false);
@@ -58,10 +65,14 @@ export const FragranceModal: React.FC<FragranceModalProps> = ({
   const [, setNoteVersion] = useState<number>(0);
   const [currentFragrance, setCurrentFragrance] = useState<CatalogFragrance | null>(initialFragrance);
 
+  // Day (White Mode) vs Night (Black Luxury Mode)
+  const [themeMode, setThemeMode] = useState<'black' | 'white'>('black');
+
   useEffect(() => {
     if (initialFragrance) {
       const customized = getCustomizedFragrance(initialFragrance.code) || initialFragrance;
       setCurrentFragrance(customized);
+      setThemeMode(customized.themeMode || (customized.environment === 'Día' ? 'white' : 'black'));
     } else {
       setCurrentFragrance(null);
     }
@@ -73,6 +84,9 @@ export const FragranceModal: React.FC<FragranceModalProps> = ({
       if (initialFragrance) {
         const customized = getCustomizedFragrance(initialFragrance.code) || initialFragrance;
         setCurrentFragrance(customized);
+        if (customized.themeMode) {
+          setThemeMode(customized.themeMode);
+        }
       }
       setNoteVersion((v) => v + 1);
     };
@@ -91,12 +105,13 @@ export const FragranceModal: React.FC<FragranceModalProps> = ({
   // Similar perfumes calculated using Weighted Jaccard Similarity (Salida 25%, Corazón 35%, Fondo 40%)
   const similarItems: TieredJaccardResult[] = findSimilarFragrancesJaccard(fragrance, 4);
 
-  // Fragrantica Accords
+  // Fragrantica Accords (passes custom accords if customized by admin)
   const mainAccords = computeFragranticaAccords(
     fragrance.family,
     fragrance.allNotes,
     fragrance.sweetness,
-    fragrance.intensity
+    fragrance.intensity,
+    fragrance.mainAccords
   );
 
   // Brand config
@@ -131,36 +146,99 @@ export const FragranceModal: React.FC<FragranceModalProps> = ({
     <>
       <div className="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4 bg-black/85 backdrop-blur-md overflow-y-auto animate-in fade-in duration-200">
         <div
-          className="relative w-full max-w-4xl bg-[#0c0c0c] border border-[#C9A84C]/40 rounded-3xl shadow-2xl shadow-[#C9A84C]/20 overflow-hidden my-4 max-h-[94vh] flex flex-col"
+          className={`relative w-full max-w-4xl rounded-3xl shadow-2xl overflow-hidden my-4 max-h-[94vh] flex flex-col transition-colors duration-300 ${
+            themeMode === 'white'
+              ? 'bg-white text-stone-900 border border-stone-200 shadow-stone-900/20'
+              : 'bg-[#0c0c0c] text-stone-100 border border-[#C9A84C]/40 shadow-[#C9A84C]/20'
+          }`}
           onClick={(e) => e.stopPropagation()}
         >
-          {/* Top Bar with Close and Admin Controls */}
-          <div className="flex items-center justify-between p-4 sm:px-8 border-b border-stone-800/80 bg-[#0f0f0f] z-20">
-            <div className="flex items-center gap-2">
-              <span className="font-mono text-xs font-bold px-2.5 py-1 rounded-lg bg-black text-[#F0D080] border border-[#C9A84C]/50">
+          {/* Top Bar with Controls */}
+          <div
+            className={`flex items-center justify-between p-3 sm:px-6 border-b z-20 transition-colors ${
+              themeMode === 'white'
+                ? 'bg-stone-50 border-stone-200 text-stone-900'
+                : 'bg-[#0f0f0f] border-stone-800/80 text-stone-100'
+            }`}
+          >
+            <div className="flex items-center gap-2 flex-wrap">
+              <span className={`font-mono text-xs font-bold px-2.5 py-1 rounded-lg border ${
+                themeMode === 'white'
+                  ? 'bg-white text-stone-900 border-stone-300'
+                  : 'bg-black text-[#F0D080] border-[#C9A84C]/50'
+              }`}>
                 {fragrance.code}
               </span>
+
               {isAdmin && (
                 <button
                   type="button"
                   onClick={() => setIsAdminEditorOpen(true)}
-                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#C9A84C] text-stone-950 text-xs font-bold shadow-lg hover:brightness-110 transition"
-                  title="Modificar foto real y notas olfativas de este perfume"
+                  className="inline-flex items-center gap-1.5 px-3 py-1 rounded-lg bg-[#C9A84C] text-stone-950 text-xs font-bold shadow hover:brightness-110 transition"
+                  title="Modificar foto real, acordes y notas de este perfume"
                 >
                   <Camera className="w-3.5 h-3.5" />
-                  <span className="hidden sm:inline">Poner Foto Real / Editar Notas</span>
+                  <span className="hidden sm:inline">Editar Ficha & Acordes</span>
                   <span className="sm:hidden">Editar</span>
+                </button>
+              )}
+
+              {onAddToCompare && (
+                <button
+                  type="button"
+                  onClick={() => onAddToCompare(fragrance)}
+                  className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-lg text-xs font-bold transition border ${
+                    isCompared
+                      ? 'bg-emerald-500/20 text-emerald-600 border-emerald-500/50'
+                      : themeMode === 'white'
+                      ? 'bg-stone-100 text-stone-800 hover:bg-stone-200 border-stone-300'
+                      : 'bg-stone-900 text-stone-300 hover:text-white border-stone-800'
+                  }`}
+                  title="Comparar este perfume en pantalla dividida"
+                >
+                  <Scale className="w-3.5 h-3.5 text-[#C9A84C]" />
+                  <span>{isCompared ? '✓ En Comparador' : 'Comparar'}</span>
                 </button>
               )}
             </div>
 
-            <button
-              onClick={onClose}
-              className="p-2 text-stone-400 hover:text-stone-100 bg-stone-900 hover:bg-black rounded-full transition-colors border border-stone-800"
-              aria-label="Cerrar modal"
-            >
-              <X className="w-5 h-5" />
-            </button>
+            <div className="flex items-center gap-2">
+              {/* Day / Night (White / Black) Theme Mode Toggle */}
+              <button
+                type="button"
+                onClick={() => setThemeMode(themeMode === 'black' ? 'white' : 'black')}
+                className={`px-3 py-1.5 rounded-xl text-xs font-bold transition flex items-center gap-1.5 border ${
+                  themeMode === 'white'
+                    ? 'bg-stone-900 text-stone-100 border-stone-800 hover:bg-black'
+                    : 'bg-white text-stone-950 border-stone-200 hover:bg-stone-100'
+                }`}
+                title="Alternar entre Fondo Blanco (Día) y Fondo Negro (Noche) como en Fragrantica"
+              >
+                {themeMode === 'white' ? (
+                  <>
+                    <Moon className="w-3.5 h-3.5 text-indigo-400" />
+                    <span className="hidden sm:inline">Modo Noche (Negro)</span>
+                  </>
+                ) : (
+                  <>
+                    <Sun className="w-3.5 h-3.5 text-amber-400" />
+                    <span className="hidden sm:inline">Modo Día (Blanco)</span>
+                  </>
+                )}
+              </button>
+
+              <button
+                onClick={onClose}
+                className={`p-1.5 rounded-full transition-colors border ${
+                  themeMode === 'white'
+                    ? 'text-stone-600 hover:text-stone-900 bg-stone-100 hover:bg-stone-200 border-stone-300'
+                    : 'text-stone-400 hover:text-stone-100 bg-stone-900 hover:bg-black border-stone-800'
+                }`}
+                aria-label="Cerrar modal"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
           </div>
 
           <div className="overflow-y-auto p-4 sm:p-8 space-y-8">
@@ -168,7 +246,13 @@ export const FragranceModal: React.FC<FragranceModalProps> = ({
             <div className="grid grid-cols-1 md:grid-cols-12 gap-6 sm:gap-8 items-start">
               {/* Left: Real Bottle Photo & Code */}
               <div className="md:col-span-5 space-y-3">
-                <div className="relative w-full aspect-[3/4] max-w-xs mx-auto rounded-3xl overflow-hidden border border-[#C9A84C]/40 shadow-2xl bg-gradient-to-b from-stone-900 via-[#0d0d0d] to-black p-4 flex items-center justify-center group">
+                <div
+                  className={`relative w-full aspect-[3/4] max-w-xs mx-auto rounded-3xl overflow-hidden border p-4 flex items-center justify-center group transition-colors ${
+                    themeMode === 'white'
+                      ? 'bg-gradient-to-b from-stone-50 via-white to-stone-100 border-stone-200 shadow-xl'
+                      : 'bg-gradient-to-b from-stone-900 via-[#0d0d0d] to-black border-[#C9A84C]/40 shadow-2xl'
+                  }`}
+                >
                   <img
                     src={bottlePhoto}
                     alt={fragrance.name}
@@ -179,7 +263,11 @@ export const FragranceModal: React.FC<FragranceModalProps> = ({
                   <button
                     type="button"
                     onClick={() => onToggleFavorite(fragrance.id)}
-                    className="absolute top-3 right-3 p-2 rounded-xl bg-black/80 border border-stone-800 text-stone-300 hover:text-rose-400 shadow"
+                    className={`absolute top-3 right-3 p-2 rounded-xl border shadow ${
+                      themeMode === 'white'
+                        ? 'bg-white/90 border-stone-300 text-stone-600 hover:text-rose-500'
+                        : 'bg-black/80 border-stone-800 text-stone-300 hover:text-rose-400'
+                    }`}
                   >
                     <Heart className={`w-4 h-4 ${isFavorite ? 'fill-rose-500 text-rose-500' : ''}`} />
                   </button>
@@ -203,7 +291,7 @@ export const FragranceModal: React.FC<FragranceModalProps> = ({
                     className="w-full max-w-xs mx-auto py-2.5 rounded-xl bg-gradient-to-r from-[#A07830] via-[#C9A84C] to-[#A07830] text-stone-950 text-xs font-bold flex items-center justify-center gap-1.5 shadow hover:brightness-110 transition"
                   >
                     <Camera className="w-3.5 h-3.5" />
-                    <span>Poner Foto Real / Editar Notas</span>
+                    <span>Poner Foto Real / Editar Ficha</span>
                   </button>
                 )}
               </div>
@@ -220,19 +308,27 @@ export const FragranceModal: React.FC<FragranceModalProps> = ({
                       <span className={brandCfg.fontClass}>{brandCfg.label}</span>
                     </div>
                     {/* Entire name without truncation */}
-                    <h2 className="text-2xl sm:text-3xl font-extrabold font-serif-luxury text-stone-100 tracking-tight break-words whitespace-normal">
+                    <h2 className={`text-2xl sm:text-3xl font-extrabold font-serif-luxury tracking-tight break-words whitespace-normal ${
+                      themeMode === 'white' ? 'text-stone-950' : 'text-stone-100'
+                    }`}>
                       {fragrance.name}
                     </h2>
-                    <p className="text-xs text-stone-400 mt-1 break-words">
-                      {fragrance.family} · <span className="text-[#F0D080]">{fragrance.subfamily}</span>
+                    <p className={`text-xs mt-1 break-words ${themeMode === 'white' ? 'text-stone-600' : 'text-stone-400'}`}>
+                      {fragrance.family} · <span className={themeMode === 'white' ? 'text-amber-800 font-bold' : 'text-[#F0D080]'}>{fragrance.subfamily}</span>
                     </p>
                   </div>
                 </div>
 
-                {/* Acordes Principales (Ordenados de mayor a menor) */}
-                <div className="p-4 rounded-2xl bg-[#141414] border border-stone-800 space-y-2">
-                  <span className="text-xs uppercase tracking-wider text-[#F0D080] font-bold block">
-                    acordes principales (de mayor a menor)
+                {/* Acordes Principales (Fragrantica layout - sin texto de mayor a menor) */}
+                <div className={`p-4 rounded-2xl border space-y-2 ${
+                  themeMode === 'white'
+                    ? 'bg-stone-50 border-stone-200'
+                    : 'bg-[#141414] border-stone-800'
+                }`}>
+                  <span className={`text-xs uppercase tracking-wider font-bold block ${
+                    themeMode === 'white' ? 'text-stone-800' : 'text-[#F0D080]'
+                  }`}>
+                    acordes principales
                   </span>
                   <div className="space-y-1.5 pt-1">
                     {mainAccords.map((accord) => (
@@ -656,22 +752,27 @@ export const FragranceModal: React.FC<FragranceModalProps> = ({
                     <X className="w-4 h-4" />
                   </button>
 
-                  <div className="w-24 h-24 mx-auto rounded-2xl bg-white p-1.5 shadow-xl overflow-hidden border border-stone-700">
+                  <div className="w-24 h-24 mx-auto rounded-2xl bg-white p-1.5 shadow-xl overflow-hidden border border-[#C9A84C]/40">
                     <img
                       src={noteVisual.photoUrl}
-                      alt={selectedNotePopup}
+                      alt={noteVisual.name || selectedNotePopup}
                       referrerPolicy="no-referrer"
                       className="w-full h-full object-cover rounded-xl"
                     />
                   </div>
 
                   <div className="text-center space-y-1">
-                    <span className="text-[10px] uppercase font-mono tracking-wider px-2.5 py-0.5 rounded-full bg-stone-900 border border-stone-800 text-[#F0D080]">
-                      {noteVisual.category}
-                    </span>
                     <h4 className="text-xl font-bold font-serif-luxury text-stone-100 capitalize break-words">
-                      {selectedNotePopup}
+                      {noteVisual.name || selectedNotePopup}
                     </h4>
+                    {noteVisual.botanicalName && (
+                      <p className="text-xs text-stone-400 italic">
+                        {noteVisual.botanicalName}
+                      </p>
+                    )}
+                    <p className="text-[10px] uppercase font-mono tracking-wider font-bold text-[#F0D080]">
+                      Grupo: {noteVisual.category.toUpperCase()}
+                    </p>
                     <div className="flex justify-center gap-1.5 pt-1 text-[11px]">
                       {isTop && (
                         <span className="px-2 py-0.5 rounded bg-stone-900 border border-[#F0D080]/40 text-[#F0D080] font-semibold">
@@ -691,17 +792,37 @@ export const FragranceModal: React.FC<FragranceModalProps> = ({
                     </div>
                   </div>
 
-                  <p className="text-xs text-stone-300 leading-relaxed text-center bg-black/40 p-3 rounded-xl border border-stone-800 break-words whitespace-normal">
-                    {noteVisual.description}
-                  </p>
+                  <div className="p-3.5 bg-black/50 rounded-2xl border border-stone-800 text-xs text-stone-300 leading-relaxed text-left space-y-1">
+                    <span className="text-[#F0D080] font-bold text-[11px] block uppercase tracking-wide">
+                      Perfil Aromático:
+                    </span>
+                    <p>{noteVisual.description}</p>
+                  </div>
 
-                  <button
-                    type="button"
-                    onClick={() => setSelectedNotePopup(null)}
-                    className="w-full py-2 rounded-xl bg-gradient-to-r from-[#A07830] to-[#C9A84C] text-stone-950 font-bold text-xs uppercase tracking-wider hover:brightness-110 transition"
-                  >
-                    Cerrar Ficha
-                  </button>
+                  <div className="flex flex-col gap-2 pt-1">
+                    {isAdmin && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const targetNote = selectedNotePopup;
+                          setSelectedNotePopup(null);
+                          setEditingNoteForPhoto(targetNote);
+                        }}
+                        className="w-full py-2 rounded-xl bg-stone-800 hover:bg-stone-700 text-[#F0D080] border border-[#C9A84C]/40 text-xs font-bold transition flex items-center justify-center gap-1.5"
+                      >
+                        <Edit3 className="w-3.5 h-3.5" />
+                        <span>Editar Nota (Nombre, Descripción, Foto)</span>
+                      </button>
+                    )}
+
+                    <button
+                      type="button"
+                      onClick={() => setSelectedNotePopup(null)}
+                      className="w-full py-2 rounded-xl bg-gradient-to-r from-[#A07830] to-[#C9A84C] text-stone-950 font-bold text-xs uppercase tracking-wider hover:brightness-110 transition"
+                    >
+                      Cerrar Ficha
+                    </button>
+                  </div>
                 </div>
               </div>
             );
