@@ -98,15 +98,34 @@ export function getOccasionDescription(occasionAnswer: string): string {
   }
 }
 
-// Generates a punctual, direct sensory review without verbose filler or truncation
+// Generates an articulate, poetic, and complete sensory review without missing words or truncation
 export function getFullFragranceReview(f: CatalogFragrance): string {
-  const cleanedDesc = (f.description || '')
-    .replace(/\s+y\s+dulzor$/i, '.')
-    .replace(/\s+y\s+dulzor\.$/i, '.')
-    .replace(/,\s*$/, '.')
-    .trim();
+  if (
+    f.description &&
+    f.description.length >= 60 &&
+    f.description.endsWith('.') &&
+    !f.description.match(/y dulzo/i)
+  ) {
+    return f.description.trim();
+  }
 
-  return cleanedDesc || `${f.name} de ${f.brand}: una composición ${f.family} con proyección ${f.intensity.toLowerCase()}, dulzor ${f.sweetness.toLowerCase()} y fijación óptima para ${f.skinCompat.toLowerCase()}.`;
+  const top = f.pyramid?.top && f.pyramid.top.length > 0
+    ? f.pyramid.top.slice(0, 3).join(', ')
+    : f.allNotes?.slice(0, 2).join(', ') || 'acordes cítricos y luminosos';
+  const heart = f.pyramid?.heart && f.pyramid.heart.length > 0
+    ? f.pyramid.heart.slice(0, 3).join(', ')
+    : f.allNotes?.slice(2, 4).join(', ') || 'matices florales y especiados';
+  const base = f.pyramid?.base && f.pyramid.base.length > 0
+    ? f.pyramid.base.slice(0, 3).join(', ')
+    : f.allNotes?.slice(4, 6).join(', ') || 'maderas nobles y almizcle fijador';
+
+  const sens = (f.sensation || 'cálida y envolvente').toLowerCase();
+  const sweet = (f.sweetness || 'moderado').toLowerCase();
+  const intens = (f.intensity || 'moderada').toLowerCase();
+  const skin = (f.skinCompat || 'todo tipo de piel').toLowerCase();
+  const occ = (f.occasion || 'ocasiones especiales').toLowerCase();
+
+  return `${f.name} de ${f.brand} es una composición ${f.family.toLowerCase()} (${f.subfamily}). Abre con una salida brillante de ${top}, evoluciona hacia un corazón sofisticado de ${heart} y se asienta sobre un fondo duradero de ${base}. Proyecta una estela ${sens} con dulzor ${sweet}, intensidad ${intens} y una fijación sublime en ${skin}, ideal para ${occ}.`;
 }
 
 export function getPunctualFragranceBreakdown(f: CatalogFragrance): {
@@ -116,9 +135,9 @@ export function getPunctualFragranceBreakdown(f: CatalogFragrance): {
   resumen: string;
 } {
   return {
-    resumen: (f.description || '').replace(/\s+y\s+dulzor(\.)?$/i, '.').trim(),
-    salida: f.pyramid?.top && f.pyramid.top.length > 0 ? f.pyramid.top.join(', ') : 'Notas frescas',
-    corazon: f.pyramid?.heart && f.pyramid.heart.length > 0 ? f.pyramid.heart.join(', ') : 'Cuerpo floral/especiado',
+    resumen: getFullFragranceReview(f),
+    salida: f.pyramid?.top && f.pyramid.top.length > 0 ? f.pyramid.top.join(', ') : 'Notas frescas de apertura',
+    corazon: f.pyramid?.heart && f.pyramid.heart.length > 0 ? f.pyramid.heart.join(', ') : 'Cuerpo floral y especiado',
     fondo: f.pyramid?.base && f.pyramid.base.length > 0 ? f.pyramid.base.join(', ') : 'Fondo cálido y fijador'
   };
 }

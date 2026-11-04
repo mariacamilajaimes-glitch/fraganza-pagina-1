@@ -212,7 +212,7 @@ export const FragranceModal: React.FC<FragranceModalProps> = ({
                     ? 'bg-stone-900 text-stone-100 border-stone-800 hover:bg-black'
                     : 'bg-white text-stone-950 border-stone-200 hover:bg-stone-100'
                 }`}
-                title="Alternar entre Fondo Blanco (Día) y Fondo Negro (Noche) como en Fragrantica"
+                title="Alternar entre Fondo Blanco (Día) y Fondo Negro (Noche)"
               >
                 {themeMode === 'white' ? (
                   <>
@@ -301,11 +301,20 @@ export const FragranceModal: React.FC<FragranceModalProps> = ({
                 {/* Brand Logo Card & Header */}
                 <div className="flex items-start justify-between gap-4">
                   <div className="w-full">
-                    <div
-                      className="inline-block px-3 py-1 rounded-md text-xs shadow mb-2 font-black uppercase"
-                      style={{ backgroundColor: brandCfg.bgColor, color: brandCfg.textColor }}
-                    >
-                      <span className={brandCfg.fontClass}>{brandCfg.label}</span>
+                    <div className="flex items-center gap-2 mb-2 flex-wrap">
+                      <div
+                        className="inline-block px-3 py-1 rounded-md text-xs shadow font-black uppercase"
+                        style={{ backgroundColor: brandCfg.bgColor, color: brandCfg.textColor }}
+                      >
+                        <span className={brandCfg.fontClass}>{brandCfg.label}</span>
+                      </div>
+                      <span className={`px-2.5 py-0.5 rounded-lg border font-mono text-xs font-bold shadow ${
+                        themeMode === 'white'
+                          ? 'bg-amber-100/90 text-amber-900 border-amber-300'
+                          : 'bg-black/90 text-[#F0D080] border-[#C9A84C]/60'
+                      }`}>
+                        Código: {fragrance.code}
+                      </span>
                     </div>
                     {/* Entire name without truncation */}
                     <h2 className={`text-2xl sm:text-3xl font-extrabold font-serif-luxury tracking-tight break-words whitespace-normal ${

@@ -846,7 +846,7 @@ WHERE code = '${selectedFragranceCode}';`;
                 <span>2. notes</span>
               </div>
               <p className="text-stone-400 text-[11px] leading-relaxed">
-                Catálogo canónico de las 247 notas olfativas para el buscador estilo Fragrantica. Incluye trigramas (<code className="text-stone-300">pg_trgm</code>) para autocompletar al instante mientras el usuario escribe.
+                Catálogo canónico de las 247 notas olfativas para el buscador visual de notas. Incluye trigramas (<code className="text-stone-300">pg_trgm</code>) para autocompletar al instante mientras el usuario escribe.
               </p>
             </div>
 

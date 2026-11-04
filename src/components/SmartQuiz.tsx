@@ -48,6 +48,7 @@ export const SmartQuiz: React.FC<SmartQuizProps> = ({
   const [familyChoice, setFamilyChoice] = useState<MainCategory>('Amaderado / Oriental');
   const [subFamilyChoices, setSubFamilyChoices] = useState<string[]>([]);
   const [subfamilyFilter, setSubfamilyFilter] = useState<string>('');
+  const [personalityChoice, setPersonalityChoice] = useState<string>('Elegante & Sofisticada');
   const [exclusionChoice, setExclusionChoice] = useState<string>('Estoy abierto/a a todo');
   const [occasionChoice, setOccasionChoice] = useState<string>('Ocasiones especiales');
 
@@ -114,10 +115,14 @@ export const SmartQuiz: React.FC<SmartQuizProps> = ({
         // Sub-families selection (handled separately for 2 choices)
         break;
       case 7:
-        setExclusionChoice(answer);
+        setPersonalityChoice(answer);
         setTimeout(() => setCurrentQ(8), 220);
         break;
       case 8:
+        setExclusionChoice(answer);
+        setTimeout(() => setCurrentQ(9), 220);
+        break;
+      case 9:
         setOccasionChoice(answer);
         calculateAndFinish(answer);
         break;
@@ -255,7 +260,35 @@ export const SmartQuiz: React.FC<SmartQuizProps> = ({
         }
       }
 
-      // 7. Occasion match (Question 8)
+      // 7. Personality & Personal Tastes alignment (Question 7)
+      const personalityLower = (perfume.personality + ' ' + perfume.tags.join(' ') + ' ' + perfume.sensation).toLowerCase();
+      if (personalityChoice === 'Elegante & Sofisticada') {
+        if (personalityLower.includes('elegante') || personalityLower.includes('sofisticado') || personalityLower.includes('formal') || personalityLower.includes('maduro')) {
+          score += 35;
+        }
+      } else if (personalityChoice === 'Seductora & Magnética') {
+        if (personalityLower.includes('seductor') || personalityLower.includes('sensual') || personalityLower.includes('nocturno') || personalityLower.includes('misterioso')) {
+          score += 35;
+        }
+      } else if (personalityChoice === 'Fresca & Vitalista') {
+        if (personalityLower.includes('refrescante') || personalityLower.includes('fresco') || personalityLower.includes('activo') || personalityLower.includes('deportivo') || personalityLower.includes('energético')) {
+          score += 35;
+        }
+      } else if (personalityChoice === 'Cálida & Acaramelada') {
+        if (personalityLower.includes('dulce') || personalityLower.includes('acaramelad') || personalityLower.includes('cálida') || personalityLower.includes('romántico') || perfume.sweetness === 'Muy Dulce') {
+          score += 35;
+        }
+      } else if (personalityChoice === 'Vanguardista & Pulcra') {
+        if (personalityLower.includes('urbano') || personalityLower.includes('moderno') || personalityLower.includes('limpio') || personalityLower.includes('versátil')) {
+          score += 35;
+        }
+      } else if (personalityChoice === 'Audaz & Envolvente') {
+        if (personalityLower.includes('audaz') || personalityLower.includes('intenso') || personalityLower.includes('rebelde') || personalityLower.includes('envolvente') || perfume.intensity === 'Envolvente') {
+          score += 35;
+        }
+      }
+
+      // 8. Occasion match (Question 9)
       const occasionLower = (perfume.occasion + ' ' + perfume.description + ' ' + perfume.environment).toLowerCase();
       if (finalOccasion === 'Ocasiones especiales') {
         if (occasionLower.includes('fiesta') || occasionLower.includes('cita') || occasionLower.includes('noche') || occasionLower.includes('seductor')) {
@@ -353,12 +386,12 @@ export const SmartQuiz: React.FC<SmartQuizProps> = ({
         <div className="flex items-center justify-between pb-6 border-b border-stone-800/80 mb-8">
           <div className="flex items-center gap-2">
             <span className="text-xs uppercase tracking-widest text-[#F0D080] font-bold">
-              Pregunta {currentQ} de 8
+              Pregunta {currentQ + 1} de 10
             </span>
           </div>
 
           <div className="flex gap-1.5">
-            {[0, 1, 2, 3, 4, 5, 6, 7, 8].map((idx) => (
+            {[0, 1, 2, 3, 4, 5, 6, 7, 8, 9].map((idx) => (
               <div
                 key={idx}
                 className={`h-1.5 rounded-full transition-all duration-300 ${
@@ -378,17 +411,17 @@ export const SmartQuiz: React.FC<SmartQuizProps> = ({
           <div className="space-y-6 animate-in fade-in slide-in-from-right-4 duration-300">
             <div>
               <h2 className="text-2xl md:text-3xl font-bold font-serif-luxury text-stone-100">
-                ¿Para quién buscas el perfume?
+                ¿A quién va dirigida la fragancia?
               </h2>
               <p className="text-stone-400 text-xs md:text-sm mt-1">
-                Esto nos permite adaptar las sugerencias si es para tu disfrute personal o un regalo inolvidable.
+                Permite al algoritmo calibrar sugerencias para uso personal o para obsequiar a alguien especial.
               </p>
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-2">
               {[
-                { title: 'Para mí', desc: 'Quiero encontrar mi nueva firma olfativa personal' },
-                { title: 'Para otra persona', desc: 'Busco sorprender a alguien especial con una joya de la perfumería' }
+                { title: 'Para mí', desc: 'Desea encontrar su nueva firma olfativa predilecta' },
+                { title: 'Para otra persona', desc: 'Busca sorprender a alguien especial con una fragancia inolvidable' }
               ].map((opt) => (
                 <button
                   key={opt.title}
@@ -416,7 +449,7 @@ export const SmartQuiz: React.FC<SmartQuizProps> = ({
           <div className="space-y-6 animate-in fade-in slide-in-from-right-4 duration-300">
             <div>
               <h2 className="text-2xl md:text-3xl font-bold font-serif-luxury text-stone-100">
-                ¿Género del perfume que buscas?
+                ¿Qué perfil o género de fragancia busca la persona?
               </h2>
               <p className="text-stone-400 text-xs md:text-sm mt-1">
                 Filtraremos de inmediato nuestro catálogo según el perfil seleccionado.
@@ -457,7 +490,7 @@ export const SmartQuiz: React.FC<SmartQuizProps> = ({
           <div className="space-y-6 animate-in fade-in slide-in-from-right-4 duration-300">
             <div>
               <h2 className="text-2xl md:text-3xl font-bold font-serif-luxury text-stone-100">
-                ¿Cuál rango de edad se adapta a lo que buscas?
+                ¿En qué rango de edad se encuentra la persona?
               </h2>
               <p className="text-stone-400 text-xs md:text-sm mt-1">
                 Ayuda a calibrar entre propuestas juveniles dinámicas o creaciones maduras y señoriales.
@@ -494,10 +527,10 @@ export const SmartQuiz: React.FC<SmartQuizProps> = ({
           <div className="space-y-6 animate-in fade-in slide-in-from-right-4 duration-300">
             <div>
               <h2 className="text-2xl md:text-3xl font-bold font-serif-luxury text-stone-100">
-                Tipo de Piel
+                ¿Qué tipo de piel posee la persona?
               </h2>
               <p className="text-stone-400 text-xs md:text-sm mt-1">
-                La química de la piel altera radicalmente la proyección y duración del perfume.
+                La química dérmica y el nivel de hidratación influyen directamente en la fijación y duración del perfume.
               </p>
             </div>
 
@@ -554,10 +587,10 @@ export const SmartQuiz: React.FC<SmartQuizProps> = ({
           <div className="space-y-6 animate-in fade-in slide-in-from-right-4 duration-300">
             <div>
               <h2 className="text-2xl md:text-3xl font-bold font-serif-luxury text-stone-100">
-                ¿Qué intensidad buscas?
+                ¿Qué nivel de intensidad o proyección prefiere la persona?
               </h2>
               <p className="text-stone-400 text-xs md:text-sm mt-1">
-                Define el halo de proyección y la huella que dejarás en el ambiente.
+                Define el radio de proyección y la huella sensorial que dejará en el ambiente.
               </p>
             </div>
 
@@ -579,7 +612,7 @@ export const SmartQuiz: React.FC<SmartQuizProps> = ({
                   id: 'Intensa',
                   icon: '🔥',
                   label: 'Intensa',
-                  desc: 'Proyección fuerte, gran estela duradera que deja huella inolvidable a tu paso'
+                  desc: 'Proyección fuerte, gran estela duradera que deja huella inolvidable a su paso'
                 }
               ].map((opt) => (
                 <button
@@ -608,10 +641,10 @@ export const SmartQuiz: React.FC<SmartQuizProps> = ({
           <div className="space-y-6 animate-in fade-in slide-in-from-right-4 duration-300">
             <div>
               <h2 className="text-2xl md:text-3xl font-bold font-serif-luxury text-stone-100">
-                ¿Qué familia de aromas prefieres?
+                ¿Qué familia olfativa despierta mayor afinidad en la persona?
               </h2>
               <p className="text-stone-400 text-xs md:text-sm mt-1">
-                El corazón esencial de tu estilo aromático.
+                Representa el pilar y carácter aromático predominante de la fragancia.
               </p>
             </div>
 
@@ -663,20 +696,20 @@ export const SmartQuiz: React.FC<SmartQuizProps> = ({
           </div>
         )}
 
-        {/* PREGUNTA 6 (Sub-familia condicional, basada en el PDF de notas y Fragrantica) */}
+        {/* PREGUNTA 6 (Sub-familia condicional, basada en la biblioteca olfativa) */}
         {currentQ === 6 && (
           <div className="space-y-6 animate-in fade-in slide-in-from-right-4 duration-300">
             <div>
               <div className="flex items-center justify-between flex-wrap gap-2">
                 <h2 className="text-2xl md:text-3xl font-bold font-serif-luxury text-stone-100">
-                  ¿Cuál de estos acordes aromáticos te gusta más?
+                  ¿Cuáles de estos acordes aromáticos prefiere o disfruta más la persona?
                 </h2>
                 <span className="text-xs font-semibold px-3 py-1 rounded-full bg-[#C9A84C]/20 text-[#F0D080] border border-[#C9A84C]/40">
                   Elige hasta dos ({subFamilyChoices.length}/2)
                 </span>
               </div>
               <p className="text-stone-400 text-xs md:text-sm mt-1">
-                Aromas catalogados según tu familia <span className="text-[#F0D080] font-semibold">{familyChoice}</span> (basados en Fragrantica y la guía descriptiva).
+                Aromas catalogados según la familia <span className="text-[#F0D080] font-semibold">{familyChoice}</span> (basados en la biblioteca olfativa oficial de Fraganza).
               </p>
 
               {/* Quick filter input */}
@@ -778,15 +811,89 @@ export const SmartQuiz: React.FC<SmartQuizProps> = ({
           </div>
         )}
 
-        {/* PREGUNTA 7 (Exclusión) */}
+        {/* PREGUNTA 7 (Estilo personal y gustos olfativos de la persona) */}
         {currentQ === 7 && (
           <div className="space-y-6 animate-in fade-in slide-in-from-right-4 duration-300">
             <div>
               <h2 className="text-2xl md:text-3xl font-bold font-serif-luxury text-stone-100">
-                ¿Qué NO te gustaría que tuviera tu perfume?
+                ¿Qué estilo sensorial o personalidad define mejor a la persona?
               </h2>
               <p className="text-stone-400 text-xs md:text-sm mt-1">
-                Filtro de exclusión negativa para descartar notas que te resulten incómodas.
+                Define la impronta olfativa, carácter y presencia que más sintoniza con sus gustos personales.
+              </p>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3 pt-2">
+              {[
+                {
+                  id: 'Elegante & Sofisticada',
+                  icon: '👑',
+                  title: 'Elegante & Sofisticada',
+                  desc: 'Busca distinción refinada, sobriedad, madurez segura y un porte pulcro que inspira respeto.'
+                },
+                {
+                  id: 'Seductora & Magnética',
+                  icon: '🔥',
+                  title: 'Seductora & Magnética',
+                  desc: 'Prefiere dejar una estela misteriosa, sensual y cautivadora que atraiga miradas en citas y veladas íntimas.'
+                },
+                {
+                  id: 'Fresca & Vitalista',
+                  icon: '🌿',
+                  title: 'Fresca & Vitalista',
+                  desc: 'De espíritu libre, enérgico y dinámico; ama la ligereza limpia de la brisa marina, el agua y la naturaleza vivificante.'
+                },
+                {
+                  id: 'Cálida & Acaramelada',
+                  icon: '🍯',
+                  title: 'Cálida & Acaramelada',
+                  desc: 'Disfruta de la dulzura reconfortante, notas golosas que provocan ternura, cercanía y una sensación acogedora.'
+                },
+                {
+                  id: 'Vanguardista & Pulcra',
+                  icon: '✨',
+                  title: 'Vanguardista & Pulcra',
+                  desc: 'Moderna, cosmopolita y urbana; adora los aromas limpios, minimalistas, no invasivos y de corte contemporáneo.'
+                },
+                {
+                  id: 'Audaz & Envolvente',
+                  icon: '💎',
+                  title: 'Audaz & Envolvente',
+                  desc: 'Extrovertida y con carácter firme; no teme llamar la atención con una estela opulenta, rica y protagónica.'
+                }
+              ].map((opt) => (
+                <button
+                  key={opt.id}
+                  type="button"
+                  onClick={() => handleSelectAnswer(7, opt.id)}
+                  className={`p-5 rounded-2xl text-left border transition-all duration-300 flex flex-col justify-between space-y-2 group ${
+                    personalityChoice === opt.id
+                      ? 'bg-[#C9A84C]/15 border-[#C9A84C] text-stone-100 shadow-xl shadow-[#C9A84C]/10 ring-1 ring-[#C9A84C]'
+                      : 'bg-[#141414] border-stone-800 text-stone-300 hover:border-[#C9A84C]/40 hover:bg-[#1a1a1a]'
+                  }`}
+                >
+                  <div className="flex items-center gap-2.5">
+                    <span className="text-2xl">{opt.icon}</span>
+                    <p className="font-serif-luxury font-bold text-sm text-stone-100 group-hover:text-[#F0D080] transition-colors">
+                      {opt.title}
+                    </p>
+                  </div>
+                  <p className="text-[11px] text-stone-400 leading-relaxed">{opt.desc}</p>
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* PREGUNTA 8 (Exclusión) */}
+        {currentQ === 8 && (
+          <div className="space-y-6 animate-in fade-in slide-in-from-right-4 duration-300">
+            <div>
+              <h2 className="text-2xl md:text-3xl font-bold font-serif-luxury text-stone-100">
+                ¿Existe alguna faceta o nota que la persona prefiera evitar?
+              </h2>
+              <p className="text-stone-400 text-xs md:text-sm mt-1">
+                Filtro de exclusión negativa para descartar acordes o intensidades que le resulten incómodas.
               </p>
             </div>
 
@@ -802,7 +909,7 @@ export const SmartQuiz: React.FC<SmartQuizProps> = ({
                 <button
                   key={opt.title}
                   type="button"
-                  onClick={() => handleSelectAnswer(7, opt.title)}
+                  onClick={() => handleSelectAnswer(8, opt.title)}
                   className={`p-5 rounded-2xl text-left border transition-all duration-300 ${
                     exclusionChoice === opt.title
                       ? 'bg-[#C9A84C]/15 border-[#C9A84C] text-stone-100 shadow-xl shadow-[#C9A84C]/10 ring-1 ring-[#C9A84C]'
@@ -817,15 +924,15 @@ export const SmartQuiz: React.FC<SmartQuizProps> = ({
           </div>
         )}
 
-        {/* PREGUNTA 8 (Ocasión) */}
-        {currentQ === 8 && (
+        {/* PREGUNTA 9 (Ocasión de uso) */}
+        {currentQ === 9 && (
           <div className="space-y-6 animate-in fade-in slide-in-from-right-4 duration-300">
             <div>
               <h2 className="text-2xl md:text-3xl font-bold font-serif-luxury text-stone-100">
-                ¿Para qué ocasión buscas esta fragancia?
+                ¿En qué ocasión o escenario usará principalmente la fragancia la persona?
               </h2>
               <p className="text-stone-400 text-xs md:text-sm mt-1">
-                Determinará el escenario de uso idóneo y el consejo del perfumista.
+                Determinará el escenario de uso idóneo y el consejo personalizado del perfumista.
               </p>
             </div>
 
@@ -859,7 +966,7 @@ export const SmartQuiz: React.FC<SmartQuizProps> = ({
                 <button
                   key={item.id}
                   type="button"
-                  onClick={() => handleSelectAnswer(8, item.id)}
+                  onClick={() => handleSelectAnswer(9, item.id)}
                   className={`p-6 rounded-2xl text-left border transition-all duration-300 ${
                     occasionChoice === item.id
                       ? 'bg-[#C9A84C]/15 border-[#C9A84C] text-stone-100 shadow-xl shadow-[#C9A84C]/10 ring-1 ring-[#C9A84C]'

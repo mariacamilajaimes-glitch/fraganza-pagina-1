@@ -127,7 +127,7 @@ export const FragranceComparator: React.FC<FragranceComparatorProps> = ({
             Comparación de Fragancias
           </h2>
           <p className="text-stone-400 text-xs sm:text-sm mt-1">
-            Analiza notas, pirámides olfativas, acordes de Fragrantica e intensidad en pantalla dividida.
+            Analiza notas, pirámides olfativas, acordes principales e intensidad en pantalla dividida.
           </p>
         </div>
 

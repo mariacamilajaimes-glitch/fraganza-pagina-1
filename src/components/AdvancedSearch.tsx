@@ -263,7 +263,7 @@ export const AdvancedSearch: React.FC<AdvancedSearchProps> = ({
           <span>Buscador por Notas & Enciclopedia Olfativa</span>
         </div>
         <h2 className="text-3xl md:text-5xl font-extrabold text-stone-100 font-serif-luxury tracking-tight">
-          Buscador de Notas Olfativas (Fragrantica)
+          Buscador Visual de Notas Olfativas
         </h2>
         <p className="text-stone-400 text-xs sm:text-sm max-w-2xl mx-auto">
           Explora las <span className="text-[#F0D080] font-semibold">{ALL_UNIQUE_NOTES.length} notas</span> registradas en el catálogo Fraganza. Incluye o excluye notas olfativas para encontrar el perfume exacto.
@@ -503,7 +503,7 @@ export const AdvancedSearch: React.FC<AdvancedSearchProps> = ({
             {/* FRAGRANTICA-STYLE VISUAL NOTE GRID (Real photographic ingredient tiles) */}
             <div className="space-y-2">
               <div className="flex items-center justify-between text-xs text-stone-400 px-1">
-                <span>Catálogo de Notas Olfativas Reales (estilo Fragrantica)</span>
+                <span>Catálogo de Notas Olfativas con Fotografía Real</span>
                 <span className="text-[11px] text-stone-500">
                   [+] Añadir · [-] Excluir · [?] Ver reseña
                 </span>

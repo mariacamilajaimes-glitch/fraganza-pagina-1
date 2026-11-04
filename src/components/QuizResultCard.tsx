@@ -163,11 +163,16 @@ export const QuizResultCard: React.FC<QuizResultCardProps> = ({
           {/* Right: Brand, Name & "Acordes Principales" */}
           <div className="md:col-span-7 space-y-5">
             <div>
-              <div
-                className="inline-block px-3 py-1 rounded-md text-xs shadow mb-2 font-black uppercase"
-                style={{ backgroundColor: brandCfg.bgColor, color: brandCfg.textColor }}
-              >
-                <span className={brandCfg.fontClass}>{brandCfg.label}</span>
+              <div className="flex items-center gap-2 mb-2 flex-wrap">
+                <div
+                  className="inline-block px-3 py-1 rounded-md text-xs shadow font-black uppercase"
+                  style={{ backgroundColor: brandCfg.bgColor, color: brandCfg.textColor }}
+                >
+                  <span className={brandCfg.fontClass}>{brandCfg.label}</span>
+                </div>
+                <span className="px-2.5 py-0.5 rounded-lg bg-black/90 text-[#F0D080] border border-[#C9A84C]/60 font-mono text-xs font-bold shadow">
+                  Código: {winner.code}
+                </span>
               </div>
               <h2 className="text-3xl sm:text-4xl font-extrabold font-serif-luxury text-stone-100 tracking-tight break-words whitespace-normal">
                 {winner.name}

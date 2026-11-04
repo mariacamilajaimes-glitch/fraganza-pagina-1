@@ -25,7 +25,9 @@ import {
   Lock,
   ShieldCheck,
   ShieldAlert,
-  Scale
+  Scale,
+  Sun,
+  Moon
 } from 'lucide-react';
 
 export default function App() {
@@ -40,6 +42,52 @@ export default function App() {
       return false;
     }
   });
+
+  // Global page theme (dark / light) adapted to phone/system OS settings
+  const [theme, setTheme] = useState<'dark' | 'light'>(() => {
+    try {
+      const saved = localStorage.getItem('fraganza_theme_mode');
+      if (saved === 'light' || saved === 'dark') return saved;
+      if (window.matchMedia && window.matchMedia('(prefers-color-scheme: light)').matches) {
+        return 'light';
+      }
+    } catch {}
+    return 'dark';
+  });
+
+  useEffect(() => {
+    try {
+      localStorage.setItem('fraganza_theme_mode', theme);
+      if (theme === 'light') {
+        document.documentElement.classList.add('theme-light');
+        document.documentElement.classList.remove('theme-dark');
+      } else {
+        document.documentElement.classList.add('theme-dark');
+        document.documentElement.classList.remove('theme-light');
+      }
+    } catch {}
+  }, [theme]);
+
+  // Dynamic listener for phone / OS theme preference changes
+  useEffect(() => {
+    const mql = window.matchMedia('(prefers-color-scheme: light)');
+    const handler = (e: MediaQueryListEvent) => {
+      const userLocked = localStorage.getItem('fraganza_theme_mode');
+      if (!userLocked) {
+        setTheme(e.matches ? 'light' : 'dark');
+      }
+    };
+    mql.addEventListener('change', handler);
+    return () => mql.removeEventListener('change', handler);
+  }, []);
+
+  const handleToggleTheme = () => {
+    setTheme((prev) => {
+      const next = prev === 'dark' ? 'light' : 'dark';
+      showToast(next === 'light' ? '☀️ Modo Día activado para toda la página' : '🌙 Modo Noche activado para toda la página');
+      return next;
+    });
+  };
 
   // Comparison state with persistent storage
   const [compareList, setCompareList] = useState<CatalogFragrance[]>(() => {
@@ -161,7 +209,7 @@ export default function App() {
   const savedFragrances = catalogList.filter((f) => favorites.includes(f.id));
 
   return (
-    <div className="min-h-screen bg-[#0a0a0a] text-stone-100 flex flex-col selection:bg-[#C9A84C] selection:text-stone-950 font-sans">
+    <div className={`min-h-screen ${theme === 'light' ? 'theme-light bg-[#f7f6f2] text-stone-900' : 'theme-dark bg-[#0a0a0a] text-stone-100'} flex flex-col selection:bg-[#C9A84C] selection:text-stone-950 font-sans transition-colors duration-300`}>
       {/* Toast Notification */}
       {toastMessage && (
         <div className="fixed bottom-6 right-6 z-50 bg-[#161616] border border-[#C9A84C]/50 text-stone-100 px-4 py-2.5 rounded-2xl shadow-2xl text-xs font-semibold flex items-center gap-2 animate-in fade-in slide-in-from-bottom-2 duration-200">
@@ -309,6 +357,26 @@ export default function App() {
                 )}
               </button>
 
+              {/* Day / Night Global Theme Toggle */}
+              <button
+                type="button"
+                onClick={handleToggleTheme}
+                title={theme === 'dark' ? 'Cambiar a Modo Día (Blanco)' : 'Cambiar a Modo Noche (Oscuro)'}
+                className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold border transition-all duration-200 cursor-pointer ml-1 text-stone-300 hover:text-stone-100 border-stone-800 hover:border-[#C9A84C]/50 bg-[#121212]"
+              >
+                {theme === 'dark' ? (
+                  <>
+                    <Sun className="w-3.5 h-3.5 text-amber-400" />
+                    <span>Día</span>
+                  </>
+                ) : (
+                  <>
+                    <Moon className="w-3.5 h-3.5 text-indigo-400" />
+                    <span>Noche</span>
+                  </>
+                )}
+              </button>
+
               {/* Admin Access Button (Only visible when admin is logged in) */}
               {isAdmin && (
                 <button
@@ -388,6 +456,25 @@ export default function App() {
               <span className="absolute -top-1 right-1 w-4 h-4 rounded-full bg-rose-500 text-white text-[9px] flex items-center justify-center font-bold">
                 {favorites.length}
               </span>
+            )}
+          </button>
+          {/* Day / Night toggle in mobile */}
+          <button
+            type="button"
+            onClick={handleToggleTheme}
+            className="flex flex-col items-center gap-1 py-1 px-2 rounded-lg shrink-0 text-stone-400 hover:text-stone-200"
+            title={theme === 'dark' ? 'Cambiar a Modo Día' : 'Cambiar a Modo Noche'}
+          >
+            {theme === 'dark' ? (
+              <>
+                <Sun className="w-4 h-4 text-amber-400" />
+                <span>Día</span>
+              </>
+            ) : (
+              <>
+                <Moon className="w-4 h-4 text-indigo-400" />
+                <span>Noche</span>
+              </>
             )}
           </button>
 

@@ -226,15 +226,15 @@ export const FamilyExplorer: React.FC<FamilyExplorerProps> = ({
                   >
                     <Heart className={`w-3.5 h-3.5 ${isFav ? 'fill-rose-500 text-rose-500' : ''}`} />
                   </button>
+                </div>
 
-                  <div className="absolute bottom-2.5 left-3 right-3">
-                    <span className="text-[10px] uppercase tracking-wider text-[#C9A84C] font-semibold block">
-                      {perfume.brand}
-                    </span>
-                    <h4 className="text-lg font-bold font-serif-luxury text-stone-100 group-hover:text-[#F0D080] transition-colors break-words whitespace-normal leading-snug">
-                      {perfume.name}
-                    </h4>
-                  </div>
+                <div className="space-y-1">
+                  <span className="text-[10px] uppercase tracking-wider text-[#C9A84C] font-semibold block">
+                    {perfume.brand}
+                  </span>
+                  <h4 className="text-base sm:text-lg font-bold font-serif-luxury text-stone-100 group-hover:text-[#F0D080] transition-colors break-words whitespace-normal leading-snug">
+                    {perfume.name}
+                  </h4>
                 </div>
 
                 <div className="space-y-2">

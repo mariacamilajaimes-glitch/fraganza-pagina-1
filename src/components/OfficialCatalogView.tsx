@@ -440,16 +440,21 @@ export const OfficialCatalogView: React.FC<OfficialCatalogViewProps> = ({
                   }`}>
                     {perfume.gender}
                   </span>
+                </div>
 
-                  {/* Brand and Name overlay with FULL text, NO truncation */}
-                  <div className="absolute bottom-2.5 left-3 right-20">
-                    <span className="text-[10px] uppercase tracking-wider text-[#C9A84C] font-bold block break-words">
+                {/* Brand and Name with clear Code Tag and full text */}
+                <div className="space-y-1 pt-1">
+                  <div className="flex items-center justify-between gap-2 flex-wrap">
+                    <span className="text-[11px] uppercase tracking-wider text-[#C9A84C] font-bold">
                       {perfume.brand}
                     </span>
-                    <h4 className="text-base sm:text-lg font-bold font-serif-luxury text-stone-100 break-words whitespace-normal group-hover:text-[#F0D080] transition-colors leading-snug">
-                      {perfume.name}
-                    </h4>
+                    <span className="text-[11px] font-mono font-bold px-2.5 py-0.5 rounded-lg bg-black/80 text-[#F0D080] border border-[#C9A84C]/50 shadow-sm">
+                      {perfume.code}
+                    </span>
                   </div>
+                  <h4 className="text-base sm:text-lg font-bold font-serif-luxury text-stone-100 break-words whitespace-normal group-hover:text-[#F0D080] transition-colors leading-snug">
+                    {perfume.name}
+                  </h4>
                 </div>
 
                 {/* Details & Olfactory Notes Preview */}

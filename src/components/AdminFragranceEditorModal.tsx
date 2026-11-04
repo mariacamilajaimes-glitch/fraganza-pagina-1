@@ -549,7 +549,7 @@ export const AdminFragranceEditorModal: React.FC<AdminFragranceEditorModalProps>
               {/* Fondo Blanco vs Fondo Negro */}
               <div className="space-y-1.5">
                 <span className="text-xs text-stone-300 font-semibold block">
-                  Fondo de la Ficha (Estilo Fragrantica):
+                  Fondo de la Ficha (Día / Noche):
                 </span>
                 <div className="flex rounded-xl bg-black/80 p-1 border border-stone-800">
                   <button
@@ -579,12 +579,12 @@ export const AdminFragranceEditorModal: React.FC<AdminFragranceEditorModalProps>
             </div>
           </div>
 
-          {/* ACORDES PRINCIPALES (FRAGRANTICA STYLE) */}
+          {/* ACORDES PRINCIPALES */}
           <div className="p-5 rounded-2xl bg-[#141414] border border-stone-800 space-y-4">
             <div className="flex items-center justify-between">
               <label className="text-xs uppercase font-bold tracking-wider text-[#F0D080] flex items-center gap-2">
                 <Palette className="w-4 h-4" />
-                <span>Modificar Acordes Principales (Fragrantica)</span>
+                <span>Modificar Acordes Principales</span>
               </label>
               <span className="text-[11px] text-stone-400 font-mono">
                 {accordsList.length} acordes
@@ -594,7 +594,7 @@ export const AdminFragranceEditorModal: React.FC<AdminFragranceEditorModalProps>
             {/* Quick accord badges to add */}
             <div className="space-y-1.5">
               <span className="text-[11px] text-stone-400 block font-medium">
-                Haz clic para añadir acordes populares de Fragrantica:
+                Haz clic para añadir acordes principales populares:
               </span>
               <div className="flex flex-wrap gap-1.5 max-h-28 overflow-y-auto p-2 bg-black/60 rounded-xl border border-stone-800">
                 {COMMON_FRAGRANTICA_ACCORDS.map((accName) => {
@@ -648,7 +648,7 @@ export const AdminFragranceEditorModal: React.FC<AdminFragranceEditorModalProps>
             {/* Current Accords List with Percentage Sliders & Delete */}
             <div className="space-y-2 pt-2">
               <span className="text-[11px] text-stone-300 font-semibold block">
-                Acordes asignados a este perfume (vista escalonada tipo Fragrantica):
+                Acordes asignados a este perfume (vista escalonada de acordes principales):
               </span>
 
               {accordsList.length === 0 ? (

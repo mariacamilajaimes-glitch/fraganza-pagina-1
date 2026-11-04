@@ -274,7 +274,7 @@ export const AdminNotePhotoEditorModal: React.FC<AdminNotePhotoEditorModalProps>
             </div>
             <div>
               <span className="text-[10px] uppercase font-mono tracking-wider text-[#F0D080] font-bold block">
-                Editor Fragrantica de Notas Olfativas
+                Editor de Notas Olfativas
               </span>
               <h3 className="text-lg font-bold font-serif-luxury text-stone-100 capitalize">
                 {displayName || noteName}
@@ -402,7 +402,7 @@ export const AdminNotePhotoEditorModal: React.FC<AdminNotePhotoEditorModalProps>
               <BookOpen className="w-3.5 h-3.5 text-[#C9A84C]" />
               <span>Perfil Aromático / Descripción General:</span>
             </span>
-            <span className="text-[10px] text-stone-500">Formato Fragrantica</span>
+            <span className="text-[10px] text-stone-500">Enciclopedia Olfativa</span>
           </label>
           <textarea
             rows={3}
